@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "scripts": {
+    "build:wasm": "cd packages/wasm && wasm-pack build --target web --out-dir pkg",
+    "dev": "cd demo && pnpm run dev"
+  }
+}
