@@ -12,8 +12,8 @@ static LIBERATION_SANS_ITALIC: &[u8] =
 static LIBERATION_SANS_BOLD_ITALIC: &[u8] =
     include_bytes!("../fonts/LiberationSans-BoldItalic.ttf");
 
-const PAGE_WIDTH: f32 = 600.0;
-const PAGE_HEIGHT: f32 = 800.0;
+const DEFAULT_PAGE_WIDTH: f32 = 600.0;
+const DEFAULT_PAGE_HEIGHT: f32 = 800.0;
 const MARGIN_TOP: f32 = 50.0;
 const MARGIN_BOTTOM: f32 = 50.0;
 const MARGIN_LEFT: f32 = 50.0;
@@ -31,15 +31,30 @@ pub struct LayoutFragment {
     pub font_size: f32,
     pub bold: bool,
     pub italic: bool,
+    pub superscript: bool,
+    pub debug_noteref_candidate: bool,
+    pub noteref_id: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LayoutCluster {
+    pub text: String,
+    pub x: f32,
+    pub width: f32,
+    pub start: usize,
+    pub end: usize,
 }
 
 /// A visual line of text on a page.
 #[derive(Clone, Debug)]
 pub struct LayoutLine {
     pub fragments: Vec<LayoutFragment>,
+    pub clusters: Vec<LayoutCluster>,
     pub y: f32,
     pub height: f32,
     pub baseline: f32,
+    pub chapter_index: usize,
+    pub block_index: usize,
 }
 
 /// A rendered page.
@@ -53,8 +68,6 @@ pub struct LayoutPage {
 /// Complete layout of all pages.
 pub struct DocumentLayout {
     pub pages: Vec<LayoutPage>,
-    #[allow(dead_code)]
-    font_system: FontSystem,
 }
 
 pub fn create_font_system() -> FontSystem {
@@ -69,6 +82,7 @@ pub fn create_font_system() -> FontSystem {
 /// A shaped line before pagination (positions relative to block start).
 struct ShapedLine {
     fragments: Vec<LayoutFragment>,
+    clusters: Vec<LayoutCluster>,
     height: f32,
 }
 
@@ -90,15 +104,20 @@ fn shape_block(
     let mut buffer = Buffer::new(font_system, metrics);
     buffer.set_size(font_system, Some(content_width), None);
 
-    // Build concatenated source text for glyph-to-text mapping
+    // Normalize text: strip \r since cosmic-text normalizes line endings internally.
+    // Without this, glyph byte indices won't match our full_text.
+    let normalized: Vec<String> = spans.iter().map(|s| s.text.replace('\r', "")).collect();
+
     let mut full_text = String::new();
-    for span in spans {
-        full_text.push_str(&span.text);
+    for text in &normalized {
+        full_text.push_str(text);
     }
 
-    let rich_text: Vec<(&str, Attrs)> = spans
+    let rich_text: Vec<(&str, Attrs)> = normalized
         .iter()
-        .map(|s| {
+        .zip(spans.iter())
+        .enumerate()
+        .map(|(span_idx, (text, s))| {
             let attrs = Attrs::new()
                 .family(Family::Name("Liberation Sans"))
                 .weight(if s.bold { Weight::BOLD } else { Weight::NORMAL })
@@ -106,8 +125,9 @@ fn shape_block(
                     Style::Italic
                 } else {
                     Style::Normal
-                });
-            (s.text.as_str(), attrs)
+                })
+                .metadata(span_idx);
+            (text.as_str(), attrs)
         })
         .collect();
 
@@ -120,6 +140,7 @@ fn shape_block(
 
     for layout_run in buffer.layout_runs() {
         let mut fragments: Vec<LayoutFragment> = Vec::new();
+        let mut clusters: Vec<LayoutCluster> = Vec::new();
         let mut current_span_idx: Option<usize> = None;
         let mut frag_start_x: f32 = 0.0;
         let mut frag_text = String::new();
@@ -127,20 +148,30 @@ fn shape_block(
         for glyph in layout_run.glyphs {
             let span_idx = glyph.metadata;
 
+            // Guard against out-of-bounds span index
+            if span_idx >= spans.len() {
+                continue;
+            }
+
             if current_span_idx != Some(span_idx) {
                 // Flush previous fragment
                 if !frag_text.is_empty() {
                     if let Some(sidx) = current_span_idx {
-                        let span = &spans[sidx];
-                        fragments.push(LayoutFragment {
-                            text: std::mem::take(&mut frag_text),
-                            x: frag_start_x + MARGIN_LEFT,
-                            y: 0.0, // set during pagination
-                            width: glyph.x - frag_start_x,
-                            font_size: span.font_size,
-                            bold: span.bold,
-                            italic: span.italic,
-                        });
+                        if sidx < spans.len() {
+                            let span = &spans[sidx];
+                            fragments.push(LayoutFragment {
+                                text: std::mem::take(&mut frag_text),
+                                x: frag_start_x + MARGIN_LEFT,
+                                y: 0.0, // set during pagination
+                                width: glyph.x - frag_start_x,
+                                font_size: span.font_size,
+                                bold: span.bold,
+                                italic: span.italic,
+                                superscript: span.superscript,
+                                debug_noteref_candidate: span.debug_noteref_candidate,
+                                noteref_id: span.noteref_id.clone(),
+                            });
+                        }
                     }
                 }
                 current_span_idx = Some(span_idx);
@@ -148,14 +179,23 @@ fn shape_block(
                 frag_text.clear();
             }
 
-            // Extract glyph text from source
-            let glyph_text = &full_text[glyph.start..glyph.end];
-            frag_text.push_str(glyph_text);
+            // Extract glyph text from the layout run's text (not full_text)
+            if glyph.start <= glyph.end && glyph.end <= layout_run.text.len() {
+                let glyph_text = &layout_run.text[glyph.start..glyph.end];
+                frag_text.push_str(glyph_text);
+                clusters.push(LayoutCluster {
+                    text: glyph_text.to_string(),
+                    x: glyph.x + MARGIN_LEFT,
+                    width: glyph.w,
+                    start: glyph.start,
+                    end: glyph.end,
+                });
+            }
         }
 
         // Flush last fragment
         if !frag_text.is_empty() {
-            if let Some(sidx) = current_span_idx {
+            if let Some(sidx) = current_span_idx.filter(|&i| i < spans.len()) {
                 let span = &spans[sidx];
                 let last_glyph = layout_run.glyphs.last();
                 let end_x = last_glyph.map(|g| g.x + g.w).unwrap_or(frag_start_x);
@@ -167,12 +207,16 @@ fn shape_block(
                     font_size: span.font_size,
                     bold: span.bold,
                     italic: span.italic,
+                    superscript: span.superscript,
+                    debug_noteref_candidate: span.debug_noteref_candidate,
+                    noteref_id: span.noteref_id.clone(),
                 });
             }
         }
 
         shaped_lines.push(ShapedLine {
             fragments,
+            clusters,
             height: line_height,
         });
     }
@@ -180,25 +224,39 @@ fn shape_block(
     shaped_lines
 }
 
-/// Lay out an entire EpubDocument into pages.
+/// Lay out an entire EpubDocument into pages with default dimensions.
 pub fn layout_document(doc: &EpubDocument) -> DocumentLayout {
     let mut font_system = create_font_system();
-    let content_width = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
-    let content_bottom = PAGE_HEIGHT - MARGIN_BOTTOM;
+    layout_document_with_size(doc, DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT, &mut font_system)
+}
+
+/// Lay out an entire EpubDocument into pages with custom dimensions and a reusable FontSystem.
+pub fn layout_document_with_size(doc: &EpubDocument, page_width: f32, page_height: f32, font_system: &mut FontSystem) -> DocumentLayout {
+    let content_width = page_width - MARGIN_LEFT - MARGIN_RIGHT;
+    let content_bottom = page_height - MARGIN_BOTTOM;
 
     // Phase 1: Shape all blocks
     struct ShapedBlock {
         lines: Vec<ShapedLine>,
         is_heading: bool,
+        chapter_index: usize,
+        block_index: usize,
     }
 
-    let mut shaped_blocks: Vec<ShapedBlock> = Vec::new();
-    for chapter in &doc.chapters {
-        for block in &chapter.blocks {
-            let lines = shape_block(block, &mut font_system, content_width);
+    let mut shaped_chapters: Vec<Vec<ShapedBlock>> = Vec::new();
+    for (chapter_index, chapter) in doc.chapters.iter().enumerate() {
+        let mut shaped_blocks: Vec<ShapedBlock> = Vec::new();
+        for (block_index, block) in chapter.blocks.iter().enumerate() {
+            let lines = shape_block(block, font_system, content_width);
             let is_heading = matches!(block, Block::Heading { .. });
-            shaped_blocks.push(ShapedBlock { lines, is_heading });
+            shaped_blocks.push(ShapedBlock {
+                lines,
+                is_heading,
+                chapter_index,
+                block_index,
+            });
         }
+        shaped_chapters.push(shaped_blocks);
     }
 
     // Phase 2: Paginate
@@ -206,50 +264,65 @@ pub fn layout_document(doc: &EpubDocument) -> DocumentLayout {
     let mut current_lines: Vec<LayoutLine> = Vec::new();
     let mut y = MARGIN_TOP;
 
-    for shaped_block in &shaped_blocks {
-        // Extra space before headings
-        if shaped_block.is_heading {
-            y += HEADING_SPACING_BEFORE;
-        }
-
-        for shaped_line in &shaped_block.lines {
-            // Start new page if this line doesn't fit
-            if y + shaped_line.height > content_bottom && !current_lines.is_empty() {
-                pages.push(LayoutPage {
-                    width: PAGE_WIDTH,
-                    height: PAGE_HEIGHT,
-                    lines: std::mem::take(&mut current_lines),
-                });
-                y = MARGIN_TOP;
-            }
-
-            // Position fragments on the page
-            let baseline = y + shaped_line.height * 0.75; // approximate baseline
-            let mut positioned_frags: Vec<LayoutFragment> = Vec::new();
-            for frag in &shaped_line.fragments {
-                let mut f = frag.clone();
-                f.y = baseline;
-                positioned_frags.push(f);
-            }
-
-            current_lines.push(LayoutLine {
-                fragments: positioned_frags,
-                y,
-                height: shaped_line.height,
-                baseline,
+    for (chapter_idx, shaped_blocks) in shaped_chapters.iter().enumerate() {
+        // EPUB spine items are separate flow boundaries; start each later chapter on a new page.
+        if chapter_idx > 0 && !current_lines.is_empty() {
+            pages.push(LayoutPage {
+                width: page_width,
+                height: page_height,
+                lines: std::mem::take(&mut current_lines),
             });
-
-            y += shaped_line.height;
+            y = MARGIN_TOP;
         }
 
-        y += BLOCK_SPACING;
+        for shaped_block in shaped_blocks {
+            // Extra space before headings
+            if shaped_block.is_heading {
+                y += HEADING_SPACING_BEFORE;
+            }
+
+            for shaped_line in &shaped_block.lines {
+                // Start new page if this line doesn't fit
+                if y + shaped_line.height > content_bottom && !current_lines.is_empty() {
+                    pages.push(LayoutPage {
+                        width: page_width,
+                        height: page_height,
+                        lines: std::mem::take(&mut current_lines),
+                    });
+                    y = MARGIN_TOP;
+                }
+
+                // Position fragments on the page
+                let baseline = y + shaped_line.height * 0.75; // approximate baseline
+                let mut positioned_frags: Vec<LayoutFragment> = Vec::new();
+                for frag in &shaped_line.fragments {
+                    let mut f = frag.clone();
+                    f.y = baseline;
+                    positioned_frags.push(f);
+                }
+
+                current_lines.push(LayoutLine {
+                    fragments: positioned_frags,
+                    clusters: shaped_line.clusters.clone(),
+                    y,
+                    height: shaped_line.height,
+                    baseline,
+                    chapter_index: shaped_block.chapter_index,
+                    block_index: shaped_block.block_index,
+                });
+
+                y += shaped_line.height;
+            }
+
+            y += BLOCK_SPACING;
+        }
     }
 
     // Push final page
     if !current_lines.is_empty() {
         pages.push(LayoutPage {
-            width: PAGE_WIDTH,
-            height: PAGE_HEIGHT,
+            width: page_width,
+            height: page_height,
             lines: std::mem::take(&mut current_lines),
         });
     }
@@ -257,13 +330,13 @@ pub fn layout_document(doc: &EpubDocument) -> DocumentLayout {
     // Ensure at least one page
     if pages.is_empty() {
         pages.push(LayoutPage {
-            width: PAGE_WIDTH,
-            height: PAGE_HEIGHT,
+            width: page_width,
+            height: page_height,
             lines: vec![],
         });
     }
 
-    DocumentLayout { pages, font_system }
+    DocumentLayout { pages }
 }
 
 impl DocumentLayout {
@@ -286,6 +359,7 @@ mod tests {
             title: None,
             author: None,
             chapters: vec![Chapter { blocks }],
+            notes: std::collections::HashMap::new(),
         }
     }
 
@@ -294,9 +368,7 @@ mod tests {
         let doc = make_doc(vec![Block::Paragraph {
             spans: vec![Span {
                 text: "Hello, world!".into(),
-                bold: false,
-                italic: false,
-                font_size: 12.0,
+                ..Span::default()
             }],
         }]);
 
@@ -319,9 +391,7 @@ mod tests {
             .map(|i| Block::Paragraph {
                 spans: vec![Span {
                     text: format!("Paragraph number {} with some text to fill the line.", i),
-                    bold: false,
-                    italic: false,
-                    font_size: 12.0,
+                    ..Span::default()
                 }],
             })
             .collect();
@@ -329,5 +399,35 @@ mod tests {
         let doc = make_doc(blocks);
         let layout = layout_document(&doc);
         assert!(layout.page_count() > 1, "100 paragraphs should span multiple pages");
+    }
+
+    #[test]
+    fn test_chapter_boundary_starts_new_page() {
+        let doc = EpubDocument {
+            title: None,
+            author: None,
+            chapters: vec![
+                Chapter {
+                    blocks: vec![Block::Paragraph {
+                        spans: vec![Span {
+                            text: "Chapter one".into(),
+                            ..Span::default()
+                        }],
+                    }],
+                },
+                Chapter {
+                    blocks: vec![Block::Paragraph {
+                        spans: vec![Span {
+                            text: "Chapter two".into(),
+                            ..Span::default()
+                        }],
+                    }],
+                },
+            ],
+            notes: std::collections::HashMap::new(),
+        };
+
+        let layout = layout_document(&doc);
+        assert_eq!(layout.page_count(), 2);
     }
 }

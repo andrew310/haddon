@@ -3,6 +3,8 @@ pub struct EpubDocument {
     pub title: Option<String>,
     pub author: Option<String>,
     pub chapters: Vec<Chapter>,
+    /// Footnote/endnote content: fragment ID → text
+    pub notes: std::collections::HashMap<String, String>,
 }
 
 /// A single chapter (one XHTML spine item).
@@ -22,6 +24,10 @@ pub struct Span {
     pub text: String,
     pub bold: bool,
     pub italic: bool,
+    pub superscript: bool,
+    pub debug_noteref_candidate: bool,
+    /// Fragment ID this noteref points to (e.g. "d2")
+    pub noteref_id: Option<String>,
     pub font_size: f32,
 }
 
@@ -54,6 +60,9 @@ impl Default for Span {
             text: String::new(),
             bold: false,
             italic: false,
+            superscript: false,
+            debug_noteref_candidate: false,
+            noteref_id: None,
             font_size: 12.0,
         }
     }
@@ -75,7 +84,7 @@ mod tests {
 
     #[test]
     fn test_block_spans() {
-        let span = Span { text: "hello".into(), bold: true, italic: false, font_size: 12.0 };
+        let span = Span { text: "hello".into(), bold: true, ..Span::default() };
         let block = Block::Paragraph { spans: vec![span.clone()] };
         assert_eq!(block.spans(), &[span]);
     }

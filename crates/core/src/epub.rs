@@ -34,12 +34,38 @@ pub fn parse_epub(data: &[u8]) -> Result<EpubDocument, EpubError> {
         .unwrap_or_default();
     let (metadata_title, metadata_author, spine_items) = parse_opf(&mut archive, &opf_path)?;
 
-    // Step 3: Parse each spine item (XHTML chapter)
+    // Step 3: Identify notes/endnotes files and extract their content
+    let mut notes_filenames: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut all_notes: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut note_backlinks: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    for href in &spine_items {
+        let full_path = format!("{}{}", opf_dir, href);
+        if let Ok(xhtml) = read_zip_text(&mut archive, &full_path) {
+            if is_notes_section(&xhtml) {
+                let filename = href.rsplit('/').next().unwrap_or(href);
+                notes_filenames.insert(filename.to_string());
+                let (notes, backlinks) = parse_notes_content(&xhtml);
+                all_notes.extend(notes);
+                note_backlinks.extend(backlinks);
+            }
+        }
+    }
+
+    // Step 4: Parse each spine item with notes file awareness
+    let known_note_ids: std::collections::HashSet<String> = all_notes.keys().cloned().collect();
     let mut chapters = Vec::new();
     for href in &spine_items {
         let full_path = format!("{}{}", opf_dir, href);
         let xhtml = read_zip_text(&mut archive, &full_path)?;
-        let blocks = parse_xhtml(&xhtml);
+        let filename = href.rsplit('/').next().unwrap_or(href);
+        let is_notes_file = notes_filenames.contains(filename);
+        let blocks = parse_xhtml(
+            &xhtml,
+            &notes_filenames,
+            &known_note_ids,
+            &note_backlinks,
+            is_notes_file,
+        );
         chapters.push(Chapter { blocks });
     }
 
@@ -47,7 +73,123 @@ pub fn parse_epub(data: &[u8]) -> Result<EpubDocument, EpubError> {
         title: metadata_title,
         author: metadata_author,
         chapters,
+        notes: all_notes,
     })
+}
+
+/// Quick scan to check if an XHTML file is a notes/endnotes section.
+fn is_notes_section(xhtml: &str) -> bool {
+    let lower = xhtml.to_lowercase();
+    if let Some(body_start) = lower.find("<body") {
+        let chunk = &lower[body_start..std::cmp::min(body_start + 1000, lower.len())];
+        if chunk.contains("doc-footnote")
+            || chunk.contains("doc-endnote")
+            || chunk.contains("epub:type=\"footnote")
+            || chunk.contains("epub:type=\"endnote")
+            || chunk.contains(">notes<")
+            || chunk.contains(">endnotes<")
+            || chunk.contains(">notes\n")
+            || chunk.contains(">notes\r")
+            || chunk.contains(">notes<br")
+            || chunk.contains(">endnotes<br")
+        {
+            return true;
+        }
+
+        // Legacy heuristic: actual notes pages contain many links back to body
+        // anchors like "#a93". A table of contents does not.
+        let backlinkish = chunk.matches("#a").count();
+        let note_ids = chunk.matches("id=\"d").count();
+        backlinkish >= 3 && note_ids >= 3
+    } else {
+        false
+    }
+}
+
+/// Parse a notes XHTML file and extract note content by anchor ID.
+/// Each note is a <p> containing an <a id="dN"> followed by the note text.
+fn parse_notes_content(
+    xhtml: &str,
+) -> (
+    std::collections::HashMap<String, String>,
+    std::collections::HashMap<String, String>,
+) {
+    let mut notes = std::collections::HashMap::new();
+    let mut backlinks = std::collections::HashMap::new();
+    let mut reader = Reader::from_str(xhtml);
+    let mut in_body = false;
+    let mut in_note_para = false;
+    let mut current_note_id: Option<String> = None;
+    let mut current_text = String::new();
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(ref e)) => {
+                let local = e.local_name();
+                let tag_bytes = local.as_ref();
+                if tag_bytes == b"body" {
+                    in_body = true;
+                } else if tag_bytes == b"p" && in_body {
+                    if let Some(id) = current_note_id.take() {
+                        let text = current_text.trim().to_string();
+                        if !text.is_empty() {
+                            notes.insert(id, text);
+                        }
+                    }
+                    current_text.clear();
+                    in_note_para = true;
+                } else if tag_bytes == b"a" && in_note_para {
+                    let mut href_fragment: Option<String> = None;
+                    for attr in e.attributes().flatten() {
+                        if attr.key.as_ref() == b"id" {
+                            let id = String::from_utf8_lossy(&attr.value).to_string();
+                            if current_note_id.is_none() {
+                                current_note_id = Some(id);
+                            }
+                        } else if attr.key.as_ref() == b"href" {
+                            let href = String::from_utf8_lossy(&attr.value);
+                            if let Some(frag) = href.split('#').nth(1) {
+                                href_fragment = Some(frag.to_string());
+                            }
+                        }
+                    }
+                    if let (Some(note_id), Some(source_id)) = (current_note_id.as_ref(), href_fragment) {
+                        backlinks.entry(note_id.clone()).or_insert(source_id);
+                    }
+                }
+            }
+            Ok(Event::Text(ref e)) if in_note_para => {
+                let text = e.unescape().unwrap_or_default().to_string();
+                current_text.push_str(&text);
+            }
+            Ok(Event::End(ref e)) => {
+                let local = e.local_name();
+                let tag_bytes = local.as_ref();
+                if tag_bytes == b"p" {
+                    in_note_para = false;
+                } else if tag_bytes == b"body" {
+                    in_body = false;
+                }
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+    }
+    // Flush last note
+    if let Some(id) = current_note_id {
+        let text = current_text.trim().to_string();
+        if !text.is_empty() {
+            notes.insert(id, text);
+        }
+    }
+    (notes, backlinks)
+}
+
+/// Extract the filename from an href like "../Text/foo.html#anchor"
+fn href_to_filename(href: &str) -> &str {
+    let without_fragment = href.split('#').next().unwrap_or(href);
+    without_fragment.rsplit('/').next().unwrap_or(without_fragment)
 }
 
 fn read_zip_text(archive: &mut ZipArchive<Cursor<&[u8]>>, path: &str) -> Result<String, EpubError> {
@@ -160,6 +302,7 @@ fn parse_opf(
 enum StyleMarker {
     Bold,
     Italic,
+    Superscript,
 }
 
 fn current_bold(stack: &[StyleMarker]) -> bool {
@@ -168,6 +311,35 @@ fn current_bold(stack: &[StyleMarker]) -> bool {
 
 fn current_italic(stack: &[StyleMarker]) -> bool {
     stack.iter().any(|m| matches!(m, StyleMarker::Italic))
+}
+
+fn current_superscript(stack: &[StyleMarker]) -> bool {
+    stack.iter().any(|m| matches!(m, StyleMarker::Superscript))
+}
+
+/// Check if text looks like a footnote reference marker:
+/// standalone numbers, bracketed numbers, or typographic symbols.
+fn is_noteref_text(text: &str) -> bool {
+    let t = text.trim();
+    if t.is_empty() || t.len() > 10 {
+        return false;
+    }
+    // Pure digits: "1", "42", "123"
+    if t.chars().all(|c| c.is_ascii_digit()) {
+        return true;
+    }
+    // Bracketed: "[1]", "(1)"
+    if (t.starts_with('[') && t.ends_with(']')) || (t.starts_with('(') && t.ends_with(')')) {
+        let inner = &t[1..t.len() - 1];
+        if inner.chars().all(|c| c.is_ascii_digit()) {
+            return true;
+        }
+    }
+    // Typographic symbols: *, †, ‡, §
+    if t.chars().all(|c| matches!(c, '*' | '†' | '‡' | '§')) {
+        return true;
+    }
+    false
 }
 
 fn heading_font_size(level: u8) -> f32 {
@@ -181,7 +353,13 @@ fn heading_font_size(level: u8) -> f32 {
     }
 }
 
-fn parse_xhtml(xml_str: &str) -> Vec<Block> {
+fn parse_xhtml(
+    xml_str: &str,
+    notes_filenames: &std::collections::HashSet<String>,
+    known_note_ids: &std::collections::HashSet<String>,
+    note_backlinks: &std::collections::HashMap<String, String>,
+    is_notes_file: bool,
+) -> Vec<Block> {
     let mut reader = Reader::from_str(xml_str);
 
     let mut blocks: Vec<Block> = Vec::new();
@@ -190,6 +368,12 @@ fn parse_xhtml(xml_str: &str) -> Vec<Block> {
     let mut in_block = false;
     let mut in_body = false;
     let mut style_stack: Vec<StyleMarker> = Vec::new();
+    // Tier 1 noteref: explicit epub:type/role — immediate certainty
+    let mut in_noteref_definite = false;
+    let mut definite_noteref_spans_start: usize = 0;
+    // Fragment ID the current noteref points to (e.g. "d2")
+    let mut current_noteref_id: Option<String> = None;
+    let mut in_anchor = false;
 
     loop {
         match reader.read_event() {
@@ -217,6 +401,72 @@ fn parse_xhtml(xml_str: &str) -> Vec<Block> {
                     "strong" | "b" if in_body => {
                         style_stack.push(StyleMarker::Bold);
                     }
+                    "sup" if in_body => {
+                        style_stack.push(StyleMarker::Superscript);
+                    }
+                    "a" if in_body => {
+                        if is_notes_file {
+                            in_anchor = false;
+                            continue;
+                        }
+                        in_anchor = true;
+                        let mut has_explicit_noteref = false;
+                        let mut href_fragment: Option<String> = None;
+                        let mut href_targets_notes_file = false;
+                        let mut anchor_id: Option<String> = None;
+
+                        for attr in e.attributes().flatten() {
+                            let key = std::str::from_utf8(attr.key.as_ref()).unwrap_or("");
+                            let val = String::from_utf8_lossy(&attr.value);
+
+                            // Tier 1: epub:type="noteref" or role="doc-noteref"
+                            if key == "type" || key.ends_with(":type") {
+                                if val.split_whitespace().any(|t| {
+                                    t == "noteref" || t == "biblioref" || t == "glossref"
+                                }) {
+                                    has_explicit_noteref = true;
+                                }
+                            }
+                            if key == "role" {
+                                if val.split_whitespace().any(|r| {
+                                    r == "doc-noteref" || r == "doc-biblioref" || r == "doc-glossref"
+                                }) {
+                                    has_explicit_noteref = true;
+                                }
+                            }
+
+                            // Extract href and fragment ID
+                            if key == "href" {
+                                let filename = href_to_filename(&val);
+                                href_targets_notes_file = notes_filenames.contains(filename);
+                                // Extract fragment: "...#d2" → "d2"
+                                if let Some(frag) = val.split('#').nth(1) {
+                                    href_fragment = Some(frag.to_string());
+                                }
+                            }
+                            if key == "id" {
+                                anchor_id = Some(val.to_string());
+                            }
+                        }
+
+                        let has_known_note_target = href_fragment
+                            .as_ref()
+                            .is_some_and(|frag| known_note_ids.contains(frag))
+                            && href_targets_notes_file;
+                        let has_matching_backlink = match (href_fragment.as_ref(), anchor_id.as_ref()) {
+                            (Some(note_id), Some(source_id)) => {
+                                note_backlinks.get(note_id).is_some_and(|back| back == source_id)
+                            }
+                            _ => false,
+                        };
+
+                        if has_explicit_noteref || (has_known_note_target && has_matching_backlink) {
+                            style_stack.push(StyleMarker::Superscript);
+                            in_noteref_definite = true;
+                            definite_noteref_spans_start = current_spans.len();
+                            current_noteref_id = href_fragment;
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -227,9 +477,12 @@ fn parse_xhtml(xml_str: &str) -> Vec<Block> {
                         .map(heading_font_size)
                         .unwrap_or(12.0);
                     current_spans.push(Span {
+                        debug_noteref_candidate: in_anchor && is_noteref_text(&text),
                         text,
                         bold: current_bold(&style_stack),
                         italic: current_italic(&style_stack),
+                        superscript: current_superscript(&style_stack),
+                        noteref_id: None,
                         font_size,
                     });
                 }
@@ -260,8 +513,25 @@ fn parse_xhtml(xml_str: &str) -> Vec<Block> {
                         }
                         in_block = false;
                     }
-                    "em" | "i" | "strong" | "b" => {
+                    "em" | "i" | "strong" | "b" | "sup" => {
                         style_stack.pop();
+                    }
+                    "a" => {
+                        in_anchor = false;
+                        if is_notes_file {
+                            continue;
+                        }
+                        if in_noteref_definite {
+                            style_stack.pop();
+                            // Set noteref_id only on spans created inside this <a>
+                            if let Some(ref id) = current_noteref_id {
+                                for span in &mut current_spans[definite_noteref_spans_start..] {
+                                    span.noteref_id = Some(id.clone());
+                                }
+                            }
+                            in_noteref_definite = false;
+                            current_noteref_id = None;
+                        }
                     }
                     _ => {}
                 }
@@ -271,9 +541,7 @@ fn parse_xhtml(xml_str: &str) -> Vec<Block> {
                 if name.as_ref() == b"br" {
                     current_spans.push(Span {
                         text: "\n".to_string(),
-                        bold: false,
-                        italic: false,
-                        font_size: 12.0,
+                        ..Span::default()
                     });
                 }
             }
@@ -326,6 +594,49 @@ mod tests {
 
         zip.start_file("OEBPS/chapter1.xhtml", options).unwrap();
         zip.write_all(chapter_xhtml.as_bytes()).unwrap();
+
+        let cursor = zip.finish().unwrap();
+        cursor.into_inner()
+    }
+
+    fn make_test_epub_with_notes(chapter_xhtml: &str, notes_xhtml: &str) -> Vec<u8> {
+        let buf = Cursor::new(Vec::new());
+        let mut zip = ZipWriter::new(buf);
+        let options = SimpleFileOptions::default();
+
+        zip.start_file("mimetype", SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored)).unwrap();
+        zip.write_all(b"application/epub+zip").unwrap();
+
+        zip.start_file("META-INF/container.xml", options).unwrap();
+        zip.write_all(br#"<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>"#).unwrap();
+
+        zip.start_file("OEBPS/content.opf", options).unwrap();
+        zip.write_all(br#"<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>Test Book</dc:title>
+    <dc:creator>Test Author</dc:creator>
+  </metadata>
+  <manifest>
+    <item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="notes" href="notes.xhtml" media-type="application/xhtml+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="ch1"/>
+    <itemref idref="notes"/>
+  </spine>
+</package>"#).unwrap();
+
+        zip.start_file("OEBPS/chapter1.xhtml", options).unwrap();
+        zip.write_all(chapter_xhtml.as_bytes()).unwrap();
+
+        zip.start_file("OEBPS/notes.xhtml", options).unwrap();
+        zip.write_all(notes_xhtml.as_bytes()).unwrap();
 
         let cursor = zip.finish().unwrap();
         cursor.into_inner()
@@ -389,5 +700,36 @@ mod tests {
         assert_eq!(spans[3].text, "bold");
         assert!(spans[3].bold);
         assert_eq!(spans[4].text, " text.");
+    }
+
+    #[test]
+    fn test_parse_legacy_notes_page_and_plain_anchor_noteref() {
+        let epub_bytes = make_test_epub_with_notes(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>Ch1</title></head>
+<body>
+  <p>Some claim this is true.<a href="notes.xhtml#d142" id="a142">51</a> More text.</p>
+</body>
+</html>"#,
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head><title>Notes</title></head>
+<body>
+  <p class="ct"><a href="chapter1.xhtml#a142" id="d142">NOTES<br/></a></p>
+  <p class="ntx"><a href="chapter1.xhtml#a142" id="d142">51</a>. Legacy note text.</p>
+  <p class="ntx"><a href="chapter1.xhtml#a143" id="d143">52</a>. Another note.</p>
+  <p class="ntx"><a href="chapter1.xhtml#a144" id="d144">53</a>. Third note.</p>
+</body>
+</html>"#,
+        );
+
+        let doc = parse_epub(&epub_bytes).unwrap();
+        assert_eq!(doc.notes.get("d142").map(String::as_str), Some("51. Legacy note text."));
+
+        let spans = doc.chapters[0].blocks[0].spans();
+        let marker = spans.iter().find(|s| s.text == "51").expect("marker span");
+        assert!(marker.superscript);
+        assert_eq!(marker.noteref_id.as_deref(), Some("d142"));
     }
 }
