@@ -1,5 +1,8 @@
 target/
 apps/*/dist/
+.turbo/
+apps/*/.turbo/
+packages/*/.turbo/
 node_modules/
 dist/
 .DS_Store
