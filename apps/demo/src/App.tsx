@@ -8,7 +8,7 @@ import {
 } from "@floating-ui/react";
 import "./App.css";
 
-let wasmModule: typeof import("../../packages/wasm/pkg/haddon_wasm") | null =
+let wasmModule: typeof import("../../../packages/wasm/pkg/haddon_wasm") | null =
   null;
 type EpubReaderType = InstanceType<
   NonNullable<typeof wasmModule>["EpubReader"]
@@ -16,7 +16,7 @@ type EpubReaderType = InstanceType<
 
 async function getWasm() {
   if (!wasmModule) {
-    const mod = await import("../../packages/wasm/pkg/haddon_wasm");
+    const mod = await import("../../../packages/wasm/pkg/haddon_wasm");
     await mod.default();
     wasmModule = mod;
   }
@@ -40,6 +40,13 @@ type SelectionAnchor = {
   width: number;
   height: number;
 };
+type NoteAnchor = {
+  pageIndex: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 export default function App() {
   const [reader, setReader] = useState<EpubReaderType | null>(null);
@@ -57,8 +64,6 @@ export default function App() {
   );
   const [tooltip, setTooltip] = useState<{
     text: string;
-    x: number;
-    y: number;
     pageIndex: number;
   } | null>(null);
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
@@ -70,11 +75,20 @@ export default function App() {
   const selectionReferenceRef = useRef<{
     getBoundingClientRect: () => DOMRect;
   } | null>(null);
+  const noteReferenceRef = useRef<{
+    getBoundingClientRect: () => DOMRect;
+  } | null>(null);
 
   const { refs, floatingStyles } = useFloating({
     placement: "top",
     whileElementsMounted: autoUpdate,
     middleware: [offset(12), flip(), shift({ padding: 12 })],
+    strategy: "fixed",
+  });
+  const { refs: noteRefs, floatingStyles: noteFloatingStyles } = useFloating({
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(10), flip(), shift({ padding: 12 })],
     strategy: "fixed",
   });
 
@@ -299,43 +313,57 @@ export default function App() {
   const handleMouseMove = useCallback(
     (pageIndex: number, e: React.MouseEvent<HTMLCanvasElement>) => {
       const r = readerRef.current;
-      const canvas = canvasRefs.current[pageIndex];
-    if (!r || !canvas) return;
-    if (selectingRef.current !== null) return;
+      const canvas = getCanvasForPage(pageIndex);
+      if (!r || !canvas) return;
+      if (selectingRef.current !== null) return;
 
-      const { x, y, localX, localY } = getCanvasPoint(
-        canvas,
-        e.clientX,
-        e.clientY
-      );
+      const { x, y } = getCanvasPoint(canvas, e.clientX, e.clientY);
 
-      const noteId = r.hit_test_noteref(pageIndex, x, y);
-      if (noteId) {
-        const noteText = r.get_note(noteId);
+      const raw = r.noteref_anchor_rect(pageIndex, x, y) as
+        | { id: string; x: number; y: number; width: number; height: number }
+        | null;
+
+      if (raw) {
+        const noteText = r.get_note(raw.id);
         if (noteText) {
           canvas.style.cursor = "pointer";
-          setTooltip({
-            text: noteText,
-            x: localX,
-            y: localY,
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = rect.width / (canvas.width / DPR);
+          const scaleY = rect.height / (canvas.height / DPR);
+          const anchor: NoteAnchor = {
             pageIndex,
-          });
+            x: rect.left + raw.x * scaleX,
+            y: rect.top + raw.y * scaleY,
+            width: raw.width * scaleX,
+            height: raw.height * scaleY,
+          };
+          const virtualReference = {
+            getBoundingClientRect: () =>
+              new DOMRect(anchor.x, anchor.y, anchor.width, anchor.height),
+          };
+          noteReferenceRef.current = virtualReference;
+          noteRefs.setPositionReference(virtualReference);
+          setTooltip({ text: noteText, pageIndex });
           return;
         }
       }
       canvas.style.cursor = "default";
+      noteReferenceRef.current = null;
+      noteRefs.setPositionReference(null);
       setTooltip(null);
     },
-    [getCanvasPoint]
+    [getCanvasForPage, getCanvasPoint, noteRefs]
   );
 
   const handleMouseLeave = useCallback(() => {
     setTooltip(null);
+    noteReferenceRef.current = null;
+    noteRefs.setPositionReference(null);
     for (const canvas of canvasRefs.current) {
       if (canvas) canvas.style.cursor = "default";
     }
     if (singleCanvasRef.current) singleCanvasRef.current.style.cursor = "default";
-  }, []);
+  }, [noteRefs]);
 
   const rerenderSelectionPage = useCallback(
     (pageIndex: number) => {
@@ -528,6 +556,16 @@ export default function App() {
         </div>
       )}
 
+      {reader && tooltip && (
+        <div
+          ref={noteRefs.setFloating}
+          className="footnote-popover"
+          style={noteFloatingStyles}
+        >
+          {tooltip.text}
+        </div>
+      )}
+
       {reader && results.length > 0 && (
         <div className="search-results">
           {results.map((result, index) => (
@@ -572,17 +610,6 @@ export default function App() {
                 onMouseMove={(e) => handleSelectionMove(pageIndex, e)}
                 onMouseLeave={handleMouseLeave}
               />
-              {tooltip?.pageIndex === pageIndex && (
-                <div
-                  className="footnote-tooltip"
-                  style={{
-                    left: tooltip.x,
-                    top: tooltip.y - 10,
-                  }}
-                >
-                  {tooltip.text}
-                </div>
-              )}
             </div>
           ))}
         </div>
@@ -596,17 +623,6 @@ export default function App() {
             onMouseMove={(e) => handleSelectionMove(currentPage, e)}
             onMouseLeave={handleMouseLeave}
           />
-          {tooltip?.pageIndex === currentPage && (
-            <div
-              className="footnote-tooltip"
-              style={{
-                left: tooltip.x,
-                top: tooltip.y - 10,
-              }}
-            >
-              {tooltip.text}
-            </div>
-          )}
         </div>
       </div>
     </div>

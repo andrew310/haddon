@@ -1,2 +1,6 @@
+target/
+apps/*/dist/
 node_modules/
 dist/
+.DS_Store
+*.epub

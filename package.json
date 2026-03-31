@@ -1,7 +1,14 @@
 {
+  "name": "haddon",
   "private": true,
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "build:wasm": "cd packages/wasm && wasm-pack build --target web --out-dir pkg",
-    "dev": "cd demo && pnpm run dev"
+    "dev": "turbo run dev --filter=haddon-demo",
+    "build": "turbo run build",
+    "build:wasm": "turbo run build --filter=haddon-wasm",
+    "build:demo": "turbo run build --filter=haddon-demo"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.2"
   }
 }

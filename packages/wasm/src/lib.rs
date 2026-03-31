@@ -109,6 +109,55 @@ impl EpubReader {
         None
     }
 
+    pub fn noteref_anchor_rect(
+        &self,
+        page_index: usize,
+        x: f32,
+        y: f32,
+    ) -> Result<JsValue, JsValue> {
+        let page = self
+            .layout
+            .page(page_index)
+            .ok_or_else(|| JsValue::from_str("page index out of bounds"))?;
+
+        for line in &page.lines {
+            if y < line.y || y > line.y + line.height {
+                continue;
+            }
+            for frag in &line.fragments {
+                if let Some(ref id) = frag.noteref_id {
+                    if x >= frag.x && x <= frag.x + frag.width {
+                        let obj = Object::new();
+                        Reflect::set(&obj, &JsValue::from_str("id"), &JsValue::from_str(id))?;
+                        Reflect::set(
+                            &obj,
+                            &JsValue::from_str("x"),
+                            &JsValue::from_f64(frag.x as f64),
+                        )?;
+                        Reflect::set(
+                            &obj,
+                            &JsValue::from_str("y"),
+                            &JsValue::from_f64(line.y as f64),
+                        )?;
+                        Reflect::set(
+                            &obj,
+                            &JsValue::from_str("width"),
+                            &JsValue::from_f64(frag.width as f64),
+                        )?;
+                        Reflect::set(
+                            &obj,
+                            &JsValue::from_str("height"),
+                            &JsValue::from_f64(line.height as f64),
+                        )?;
+                        return Ok(obj.into());
+                    }
+                }
+            }
+        }
+
+        Ok(JsValue::NULL)
+    }
+
     /// Get the text content of a note by its anchor ID.
     pub fn get_note(&self, id: &str) -> Option<String> {
         self.doc.notes.get(id).cloned()

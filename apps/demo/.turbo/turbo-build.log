@@ -1,0 +1,15 @@
+
+> haddon-demo@0.0.0 build /Users/andrew/src/github.com/andrew310/haddon/apps/demo
+> vite build
+
+vite v6.4.1 building for production...
+transforming...
+✓ 40 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                               0.41 kB │ gzip:     0.29 kB
+dist/assets/haddon_wasm_bg-hnS6x8DJ.wasm  2,602.65 kB │ gzip: 1,261.56 kB
+dist/assets/index-bk912a6e.css                2.95 kB │ gzip:     0.99 kB
+dist/assets/haddon_wasm-DvQ1wDn9.js           7.39 kB │ gzip:     2.65 kB
+dist/assets/index-BzbL1jaG.js               225.96 kB │ gzip:    72.34 kB
+✓ built in 424ms
