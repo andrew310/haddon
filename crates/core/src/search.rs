@@ -1,9 +1,8 @@
-use crate::types::EpubDocument;
+use crate::types::{DocumentPoint, DocumentRange, EpubDocument};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SearchResult {
-    pub chapter_index: usize,
-    pub block_index: usize,
+    pub range: DocumentRange,
     pub snippet: String,
 }
 
@@ -30,8 +29,14 @@ pub fn search_document(
 
             if let Some(byte_idx) = haystack.find(&needle) {
                 results.push(SearchResult {
-                    chapter_index,
-                    block_index,
+                    range: DocumentRange::new(
+                        DocumentPoint::new(chapter_index, block_index, byte_idx),
+                        DocumentPoint::new(
+                            chapter_index,
+                            block_index,
+                            byte_idx + needle.len(),
+                        ),
+                    ),
                     snippet: make_snippet(&text, byte_idx, needle.len()),
                 });
 
@@ -97,8 +102,8 @@ mod tests {
 
         let results = search_document(&doc, "epsilon", 10);
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].chapter_index, 0);
-        assert_eq!(results[0].block_index, 1);
+        assert_eq!(results[0].range.start.chapter_index, 0);
+        assert_eq!(results[0].range.start.block_index, 1);
         assert!(results[0].snippet.contains("Delta epsilon zeta"));
     }
 }
