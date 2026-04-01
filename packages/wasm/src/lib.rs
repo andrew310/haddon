@@ -5,7 +5,7 @@ use haddon_core::layout::{
     LayoutPage,
 };
 use haddon_core::search::search_document;
-use haddon_core::types::EpubDocument;
+use haddon_core::types::{DocumentPoint, DocumentRange, EpubDocument};
 use js_sys::{Array, Object, Reflect};
 use wasm_bindgen::prelude::*;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement};
@@ -23,20 +23,14 @@ pub struct EpubReader {
     title: Option<String>,
     author: Option<String>,
     selection: Option<SelectionRange>,
-}
-
-#[derive(Clone)]
-struct SelectionPoint {
-    page_index: usize,
-    chapter_index: usize,
-    block_index: usize,
-    offset: usize,
+    highlights: Vec<DocumentRange>,
 }
 
 #[derive(Clone)]
 struct SelectionRange {
-    start: SelectionPoint,
-    end: SelectionPoint,
+    page_index: usize,
+    anchor: DocumentPoint,
+    focus: DocumentPoint,
 }
 
 #[wasm_bindgen]
@@ -55,6 +49,7 @@ impl EpubReader {
             title,
             author,
             selection: None,
+            highlights: Vec::new(),
         })
     }
 
@@ -88,7 +83,13 @@ impl EpubReader {
             .page(page_index)
             .ok_or_else(|| JsValue::from_str("page index out of bounds"))?;
 
-        render_page_to_canvas(page, canvas, scale, self.normalized_selection().as_ref())
+        render_page_to_canvas(
+            page,
+            canvas,
+            scale,
+            &self.highlights,
+            self.normalized_selection().as_ref(),
+        )
     }
 
     /// Hit-test: returns the note ID if (x, y) in page coords is over a noteref.
@@ -172,8 +173,9 @@ impl EpubReader {
         self.selection = self
             .hit_test_selection_point(page_index, x, y)
             .map(|point| SelectionRange {
-                start: point.clone(),
-                end: point,
+                page_index,
+                anchor: point.clone(),
+                focus: point,
             });
     }
 
@@ -184,12 +186,13 @@ impl EpubReader {
         let Some(point) = self.hit_test_selection_point(page_index, x, y) else {
             return;
         };
-        if point.page_index != current.start.page_index {
+        if page_index != current.page_index {
             return;
         }
         self.selection = Some(SelectionRange {
-            start: current.start,
-            end: point,
+            page_index,
+            anchor: current.anchor,
+            focus: point,
         });
     }
 
@@ -203,7 +206,52 @@ impl EpubReader {
 
     pub fn selected_text(&self) -> Option<String> {
         let selection = self.normalized_selection()?;
-        Some(extract_selection_text(&self.doc, &selection))
+        Some(self.doc.extract_range_text(&selection.range))
+    }
+
+    pub fn selected_range(&self) -> Result<JsValue, JsValue> {
+        let Some(selection) = self.normalized_selection() else {
+            return Ok(JsValue::NULL);
+        };
+        range_to_js(&selection.range)
+    }
+
+    pub fn set_highlights(&mut self, ranges: &JsValue) -> Result<(), JsValue> {
+        let array = Array::from(ranges);
+        let mut highlights = Vec::with_capacity(array.length() as usize);
+        for value in array.iter() {
+            if value.is_null() || value.is_undefined() {
+                continue;
+            }
+            highlights.push(range_from_js(&value)?);
+        }
+        self.highlights = highlights;
+        Ok(())
+    }
+
+    pub fn highlights(&self) -> Result<Array, JsValue> {
+        let array = Array::new();
+        for range in &self.highlights {
+            array.push(&range_to_js(range)?);
+        }
+        Ok(array)
+    }
+
+    pub fn add_selection_highlight(&mut self) -> Result<JsValue, JsValue> {
+        let Some(selection) = self.normalized_selection() else {
+            return Ok(JsValue::NULL);
+        };
+        if selection.range.is_collapsed() {
+            return Ok(JsValue::NULL);
+        }
+        if !self.highlights.iter().any(|range| range == &selection.range) {
+            self.highlights.push(selection.range.clone());
+        }
+        range_to_js(&selection.range)
+    }
+
+    pub fn clear_highlights(&mut self) {
+        self.highlights.clear();
     }
 
     pub fn selection_anchor_rect(&self, page_index: usize) -> Result<JsValue, JsValue> {
@@ -215,7 +263,7 @@ impl EpubReader {
             return Ok(JsValue::NULL);
         };
 
-        if selection.start.page_index != page_index || selection.end.page_index != page_index {
+        if selection.page_index != page_index {
             return Ok(JsValue::NULL);
         }
 
@@ -225,7 +273,7 @@ impl EpubReader {
         let mut max_y = f32::NEG_INFINITY;
 
         for line in &page.lines {
-            for (x, width) in highlight_segments_for_line(line, &selection) {
+            for (x, width) in highlight_segments_for_line(line, &selection.range) {
                 min_x = min_x.min(x);
                 min_y = min_y.min(line.y);
                 max_x = max_x.max(x + width);
@@ -264,8 +312,8 @@ impl EpubReader {
                 .iter()
                 .position(|page| {
                     page.lines.iter().any(|line| {
-                        line.chapter_index == result.chapter_index
-                            && line.block_index == result.block_index
+                        line.chapter_index == result.range.start.chapter_index
+                            && line.block_index == result.range.start.block_index
                     })
                 })
                 .unwrap_or(0);
@@ -274,12 +322,22 @@ impl EpubReader {
             Reflect::set(
                 &obj,
                 &JsValue::from_str("chapterIndex"),
-                &JsValue::from_f64(result.chapter_index as f64),
+                &JsValue::from_f64(result.range.start.chapter_index as f64),
             )?;
             Reflect::set(
                 &obj,
                 &JsValue::from_str("blockIndex"),
-                &JsValue::from_f64(result.block_index as f64),
+                &JsValue::from_f64(result.range.start.block_index as f64),
+            )?;
+            Reflect::set(
+                &obj,
+                &JsValue::from_str("startOffset"),
+                &JsValue::from_f64(result.range.start.offset as f64),
+            )?;
+            Reflect::set(
+                &obj,
+                &JsValue::from_str("endOffset"),
+                &JsValue::from_f64(result.range.end.offset as f64),
             )?;
             Reflect::set(
                 &obj,
@@ -302,7 +360,8 @@ fn render_page_to_canvas(
     page: &LayoutPage,
     canvas: &HtmlCanvasElement,
     scale: f64,
-    selection: Option<&SelectionRange>,
+    highlights: &[DocumentRange],
+    selection: Option<&NormalizedSelection>,
 ) -> Result<(), JsValue> {
     canvas.set_width((page.width as f64 * scale) as u32);
     canvas.set_height((page.height as f64 * scale) as u32);
@@ -324,16 +383,22 @@ fn render_page_to_canvas(
     ctx.save();
     ctx.scale(scale, scale)?;
 
+    ctx.set_fill_style_str("rgba(255, 215, 80, 0.34)");
+    for highlight in highlights {
+        if page_contains_range(page, highlight) {
+            for line in &page.lines {
+                for (x, width) in highlight_segments_for_line(line, highlight) {
+                    ctx.fill_rect(x as f64, line.y as f64, width as f64, line.height as f64);
+                }
+            }
+        }
+    }
+
     if let Some(selection) = selection {
-        if selection.start.page_index == selection.end.page_index
-            && page.lines.iter().any(|line| {
-                line.chapter_index == selection.start.chapter_index
-                    && line.block_index >= selection.start.block_index
-            })
-        {
+        if page_contains_range(page, &selection.range) {
             ctx.set_fill_style_str("rgba(80, 140, 255, 0.28)");
             for line in &page.lines {
-                for (x, width) in highlight_segments_for_line(line, selection) {
+                for (x, width) in highlight_segments_for_line(line, &selection.range) {
                     ctx.fill_rect(x as f64, line.y as f64, width as f64, line.height as f64);
                 }
             }
@@ -383,7 +448,7 @@ impl EpubReader {
         page_index: usize,
         x: f32,
         y: f32,
-    ) -> Option<SelectionPoint> {
+    ) -> Option<DocumentPoint> {
         let page = self.layout.page(page_index)?;
         let line = page
             .lines
@@ -418,34 +483,30 @@ impl EpubReader {
             0.0
         };
 
-        Some(SelectionPoint {
-            page_index,
-            chapter_index: line.chapter_index,
-            block_index: line.block_index,
-            offset: cluster.start + byte_offset_at_fraction(&cluster.text, fraction),
-        })
+        Some(DocumentPoint::new(
+            line.chapter_index,
+            line.block_index,
+            cluster.start + byte_offset_at_fraction(&cluster.text, fraction),
+        ))
     }
 
-    fn normalized_selection(&self) -> Option<SelectionRange> {
-        let selection = self.selection.clone()?;
-        if compare_points(&selection.start, &selection.end).is_le() {
-            Some(selection)
-        } else {
-            Some(SelectionRange {
-                start: selection.end,
-                end: selection.start,
-            })
-        }
+    fn normalized_selection(&self) -> Option<NormalizedSelection> {
+        Some(self.selection.clone()?.normalized())
     }
 }
 
-fn compare_points(a: &SelectionPoint, b: &SelectionPoint) -> std::cmp::Ordering {
-    (a.page_index, a.chapter_index, a.block_index, a.offset).cmp(&(
-        b.page_index,
-        b.chapter_index,
-        b.block_index,
-        b.offset,
-    ))
+struct NormalizedSelection {
+    page_index: usize,
+    range: DocumentRange,
+}
+
+impl SelectionRange {
+    fn normalized(&self) -> NormalizedSelection {
+        NormalizedSelection {
+            page_index: self.page_index,
+            range: DocumentRange::new(self.anchor.clone(), self.focus.clone()),
+        }
+    }
 }
 
 fn distance_to_line_center(y: f32, line: &LayoutLine) -> f32 {
@@ -469,7 +530,7 @@ fn byte_offset_at_fraction(text: &str, fraction: f32) -> usize {
 
 fn highlight_segments_for_line(
     line: &LayoutLine,
-    selection: &SelectionRange,
+    selection: &DocumentRange,
 ) -> Vec<(f32, f32)> {
     if line.chapter_index < selection.start.chapter_index
         || line.chapter_index > selection.end.chapter_index
@@ -520,7 +581,7 @@ fn highlight_segments_for_line(
 fn highlight_bounds_for_cluster(
     cluster: &LayoutCluster,
     line: &LayoutLine,
-    selection: &SelectionRange,
+    selection: &DocumentRange,
 ) -> Option<(f32, f32)> {
     let block_is_start = line.chapter_index == selection.start.chapter_index
         && line.block_index == selection.start.block_index;
@@ -558,57 +619,58 @@ fn byte_fraction(text: &str, byte_offset: usize) -> f32 {
     chars_before as f32 / total_chars as f32
 }
 
-fn extract_selection_text(doc: &EpubDocument, selection: &SelectionRange) -> String {
-    let mut out = String::new();
+fn page_contains_range(page: &LayoutPage, range: &DocumentRange) -> bool {
+    page.lines.iter().any(|line| {
+        let line_start = DocumentPoint::new(line.chapter_index, line.block_index, 0);
+        let line_end = DocumentPoint::new(line.chapter_index, line.block_index, usize::MAX);
+        range.start <= line_end && line_start <= range.end
+    })
+}
 
-    for (chapter_index, chapter) in doc.chapters.iter().enumerate() {
-        if chapter_index < selection.start.chapter_index || chapter_index > selection.end.chapter_index
-        {
-            continue;
-        }
+fn point_to_js(point: &DocumentPoint) -> Result<JsValue, JsValue> {
+    let obj = Object::new();
+    Reflect::set(
+        &obj,
+        &JsValue::from_str("chapterIndex"),
+        &JsValue::from_f64(point.chapter_index as f64),
+    )?;
+    Reflect::set(
+        &obj,
+        &JsValue::from_str("blockIndex"),
+        &JsValue::from_f64(point.block_index as f64),
+    )?;
+    Reflect::set(
+        &obj,
+        &JsValue::from_str("offset"),
+        &JsValue::from_f64(point.offset as f64),
+    )?;
+    Ok(obj.into())
+}
 
-        for (block_index, block) in chapter.blocks.iter().enumerate() {
-            if chapter_index == selection.start.chapter_index
-                && block_index < selection.start.block_index
-            {
-                continue;
-            }
-            if chapter_index == selection.end.chapter_index && block_index > selection.end.block_index
-            {
-                continue;
-            }
+fn point_from_js(value: &JsValue) -> Result<DocumentPoint, JsValue> {
+    Ok(DocumentPoint::new(
+        get_usize(value, "chapterIndex")?,
+        get_usize(value, "blockIndex")?,
+        get_usize(value, "offset")?,
+    ))
+}
 
-            let block_text = block
-                .spans()
-                .iter()
-                .map(|span| span.text.replace('\r', ""))
-                .collect::<String>();
+fn range_to_js(range: &DocumentRange) -> Result<JsValue, JsValue> {
+    let obj = Object::new();
+    Reflect::set(&obj, &JsValue::from_str("start"), &point_to_js(&range.start)?)?;
+    Reflect::set(&obj, &JsValue::from_str("end"), &point_to_js(&range.end)?)?;
+    Ok(obj.into())
+}
 
-            let start = if chapter_index == selection.start.chapter_index
-                && block_index == selection.start.block_index
-            {
-                selection.start.offset.min(block_text.len())
-            } else {
-                0
-            };
-            let end = if chapter_index == selection.end.chapter_index
-                && block_index == selection.end.block_index
-            {
-                selection.end.offset.min(block_text.len())
-            } else {
-                block_text.len()
-            };
+fn range_from_js(value: &JsValue) -> Result<DocumentRange, JsValue> {
+    let start = Reflect::get(value, &JsValue::from_str("start"))?;
+    let end = Reflect::get(value, &JsValue::from_str("end"))?;
+    Ok(DocumentRange::new(point_from_js(&start)?, point_from_js(&end)?))
+}
 
-            if start >= end {
-                continue;
-            }
-
-            if !out.is_empty() {
-                out.push('\n');
-            }
-            out.push_str(&block_text[start..end]);
-        }
-    }
-
-    out
+fn get_usize(value: &JsValue, key: &str) -> Result<usize, JsValue> {
+    Reflect::get(value, &JsValue::from_str(key))?
+        .as_f64()
+        .map(|v| v as usize)
+        .ok_or_else(|| JsValue::from_str(&format!("missing numeric field: {key}")))
 }

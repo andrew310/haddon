@@ -30,8 +30,19 @@ type ViewMode = "scroll" | "page";
 type SearchResult = {
   chapterIndex: number;
   blockIndex: number;
+  startOffset: number;
+  endOffset: number;
   pageIndex: number;
   snippet: string;
+};
+type DocumentPoint = {
+  chapterIndex: number;
+  blockIndex: number;
+  offset: number;
+};
+type DocumentRange = {
+  start: DocumentPoint;
+  end: DocumentPoint;
 };
 type SelectionAnchor = {
   pageIndex: number;
@@ -47,6 +58,7 @@ type NoteAnchor = {
   width: number;
   height: number;
 };
+const HIGHLIGHT_STORAGE_PREFIX = "haddon:highlights:";
 
 export default function App() {
   const [reader, setReader] = useState<EpubReaderType | null>(null);
@@ -62,6 +74,8 @@ export default function App() {
   const [selectionAnchor, setSelectionAnchor] = useState<SelectionAnchor | null>(
     null
   );
+  const [savedHighlightCount, setSavedHighlightCount] = useState(0);
+  const [isSelecting, setIsSelecting] = useState(false);
   const [tooltip, setTooltip] = useState<{
     text: string;
     pageIndex: number;
@@ -72,6 +86,9 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<EpubReaderType | null>(null);
   const selectingRef = useRef<number | null>(null);
+  const selectionCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const selectionPointerIdRef = useRef<number | null>(null);
+  const bookStorageKeyRef = useRef<string | null>(null);
   const selectionReferenceRef = useRef<{
     getBoundingClientRect: () => DOMRect;
   } | null>(null);
@@ -177,6 +194,18 @@ export default function App() {
     []
   );
 
+  const rerenderAllPages = useCallback(() => {
+    const r = readerRef.current;
+    if (!r) return;
+    if (viewMode === "page") {
+      renderPage(r, currentPage, singleCanvasRef.current);
+      return;
+    }
+    for (let pageIdx = 0; pageIdx < pageCount; pageIdx += 1) {
+      renderPage(r, pageIdx, canvasRefs.current[pageIdx] ?? null);
+    }
+  }, [currentPage, pageCount, renderPage, viewMode]);
+
   const doLayout = useCallback(
     (r: EpubReaderType) => {
       const width = getPageWidth();
@@ -189,6 +218,29 @@ export default function App() {
     [getPageWidth]
   );
 
+  const hydrateHighlights = useCallback(
+    (storageKey: string) => {
+      const r = readerRef.current;
+      if (!r) return;
+      const raw = localStorage.getItem(storageKey);
+      const ranges = raw ? (JSON.parse(raw) as DocumentRange[]) : [];
+      r.set_highlights(ranges);
+      setSavedHighlightCount(ranges.length);
+      rerenderAllPages();
+    },
+    [rerenderAllPages]
+  );
+
+  const persistHighlights = useCallback(() => {
+    const r = readerRef.current;
+    const storageKey = bookStorageKeyRef.current;
+    if (!r || !storageKey) return;
+    const highlights = Array.from(r.highlights() as ArrayLike<DocumentRange>);
+    localStorage.setItem(storageKey, JSON.stringify(highlights));
+    setSavedHighlightCount(highlights.length);
+    rerenderAllPages();
+  }, [rerenderAllPages]);
+
   const loadFile = useCallback(
     async (file: File) => {
       setLoading(true);
@@ -198,6 +250,8 @@ export default function App() {
         const buf = await file.arrayBuffer();
         const data = new Uint8Array(buf);
         const r = wasm.EpubReader.load(data);
+        const storageKey = `${HIGHLIGHT_STORAGE_PREFIX}${file.name}:${file.size}:${file.lastModified}`;
+        bookStorageKeyRef.current = storageKey;
         readerRef.current = r;
         setReader(r);
         setTitle(r.title() || file.name);
@@ -207,13 +261,14 @@ export default function App() {
         setSelectedText(null);
         setSelectionAnchor(null);
         doLayout(r);
+        hydrateHighlights(storageKey);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
     },
-    [doLayout]
+    [doLayout, hydrateHighlights]
   );
 
   // Re-layout on window resize
@@ -311,13 +366,13 @@ export default function App() {
 
   // Handle mousemove for footnote tooltips
   const handleMouseMove = useCallback(
-    (pageIndex: number, e: React.MouseEvent<HTMLCanvasElement>) => {
+    (pageIndex: number, clientX: number, clientY: number) => {
       const r = readerRef.current;
       const canvas = getCanvasForPage(pageIndex);
       if (!r || !canvas) return;
       if (selectingRef.current !== null) return;
 
-      const { x, y } = getCanvasPoint(canvas, e.clientX, e.clientY);
+      const { x, y } = getCanvasPoint(canvas, clientX, clientY);
 
       const raw = r.noteref_anchor_rect(pageIndex, x, y) as
         | { id: string; x: number; y: number; width: number; height: number }
@@ -376,59 +431,62 @@ export default function App() {
   );
 
   const handleSelectionStart = useCallback(
-    (pageIndex: number, e: React.MouseEvent<HTMLCanvasElement>) => {
+    (pageIndex: number, e: React.PointerEvent<HTMLCanvasElement>) => {
+      e.preventDefault();
       const r = readerRef.current;
       const canvas = getCanvasForPage(pageIndex);
       if (!r || !canvas) return;
+      if (e.button !== 0) return;
       const { x, y } = getCanvasPoint(canvas, e.clientX, e.clientY);
       selectingRef.current = pageIndex;
+      selectionCanvasRef.current = canvas;
+      selectionPointerIdRef.current = e.pointerId;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setIsSelecting(true);
       setTooltip(null);
       r.begin_selection(pageIndex, x, y);
-      syncSelectionState();
-      syncSelectionAnchor(pageIndex);
       rerenderSelectionPage(pageIndex);
     },
     [
       getCanvasForPage,
       getCanvasPoint,
       rerenderSelectionPage,
-      syncSelectionAnchor,
-      syncSelectionState,
     ]
   );
 
   const handleSelectionMove = useCallback(
-    (pageIndex: number, e: React.MouseEvent<HTMLCanvasElement>) => {
+    (pageIndex: number, e: React.PointerEvent<HTMLCanvasElement>) => {
       if (selectingRef.current !== pageIndex) {
-        handleMouseMove(pageIndex, e);
+        handleMouseMove(pageIndex, e.clientX, e.clientY);
         return;
       }
+      e.preventDefault();
       const r = readerRef.current;
-      const canvas = getCanvasForPage(pageIndex);
+      const canvas = selectionCanvasRef.current;
       if (!r || !canvas) return;
       const { x, y } = getCanvasPoint(canvas, e.clientX, e.clientY);
       r.update_selection(pageIndex, x, y);
-      syncSelectionState();
-      syncSelectionAnchor(pageIndex);
       rerenderSelectionPage(pageIndex);
     },
-    [
-      getCanvasForPage,
-      getCanvasPoint,
-      handleMouseMove,
-      rerenderSelectionPage,
-      syncSelectionAnchor,
-      syncSelectionState,
-    ]
+    [getCanvasPoint, handleMouseMove, rerenderSelectionPage]
   );
 
   const handleSelectionEnd = useCallback(() => {
-    selectingRef.current = null;
-    syncSelectionState();
-    if (viewMode === "page") {
-      syncSelectionAnchor(currentPage);
+    const pageIndex = selectingRef.current;
+    const canvas = selectionCanvasRef.current;
+    const pointerId = selectionPointerIdRef.current;
+    if (canvas && pointerId !== null && canvas.hasPointerCapture(pointerId)) {
+      canvas.releasePointerCapture(pointerId);
     }
-  }, [currentPage, syncSelectionAnchor, syncSelectionState, viewMode]);
+    selectingRef.current = null;
+    selectionCanvasRef.current = null;
+    selectionPointerIdRef.current = null;
+    setIsSelecting(false);
+    syncSelectionState();
+    if (pageIndex !== null) {
+      syncSelectionAnchor(pageIndex);
+    }
+  }, [syncSelectionAnchor, syncSelectionState]);
 
   const clearSelection = useCallback(() => {
     const r = readerRef.current;
@@ -436,6 +494,7 @@ export default function App() {
     r.clear_selection();
     setSelectedText(null);
     setSelectionAnchor(null);
+    setIsSelecting(false);
     setTooltip(null);
     selectionReferenceRef.current = null;
     refs.setPositionReference(null);
@@ -453,15 +512,24 @@ export default function App() {
     await navigator.clipboard.writeText(selectedText);
   }, [selectedText]);
 
-  useEffect(() => {
-    const onMouseUp = () => {
-      if (selectingRef.current !== null) {
-        handleSelectionEnd();
-      }
-    };
-    window.addEventListener("mouseup", onMouseUp);
-    return () => window.removeEventListener("mouseup", onMouseUp);
-  }, [handleSelectionEnd]);
+  const saveHighlight = useCallback(() => {
+    const r = readerRef.current;
+    if (!r) return;
+    const range = r.add_selection_highlight() as DocumentRange | null;
+    if (!range) return;
+    persistHighlights();
+    syncSelectionAnchor(currentPage);
+  }, [currentPage, persistHighlights, syncSelectionAnchor]);
+
+  const clearHighlights = useCallback(() => {
+    const r = readerRef.current;
+    const storageKey = bookStorageKeyRef.current;
+    if (!r || !storageKey) return;
+    r.clear_highlights();
+    localStorage.removeItem(storageKey);
+    setSavedHighlightCount(0);
+    rerenderAllPages();
+  }, [rerenderAllPages]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -516,6 +584,9 @@ export default function App() {
             <span>
               Page {currentPage + 1} of {pageCount}
             </span>
+            {savedHighlightCount > 0 && (
+              <button onClick={clearHighlights}>Clear Highlights</button>
+            )}
           </div>
         )}
       </header>
@@ -535,10 +606,13 @@ export default function App() {
           {results.length > 0 && (
             <span className="search-count">{results.length} results</span>
           )}
+          {savedHighlightCount > 0 && (
+            <span className="search-count">{savedHighlightCount} highlights</span>
+          )}
         </div>
       )}
 
-      {reader && selectedText && selectionAnchor && (
+      {reader && selectedText && selectionAnchor && !isSelecting && (
         <div
           ref={refs.setFloating}
           className="selection-popover"
@@ -550,6 +624,7 @@ export default function App() {
               : selectedText}
           </span>
           <div className="selection-actions">
+            <button onClick={saveHighlight}>Save Highlight</button>
             <button onClick={() => void copySelection()}>Copy</button>
             <button onClick={clearSelection}>Clear</button>
           </div>
@@ -606,9 +681,10 @@ export default function App() {
                 ref={(node) => {
                   canvasRefs.current[pageIndex] = node;
                 }}
-                onMouseDown={(e) => handleSelectionStart(pageIndex, e)}
-                onMouseMove={(e) => handleSelectionMove(pageIndex, e)}
-                onMouseLeave={handleMouseLeave}
+                onPointerDown={(e) => handleSelectionStart(pageIndex, e)}
+                onPointerMove={(e) => handleSelectionMove(pageIndex, e)}
+                onPointerUp={handleSelectionEnd}
+                onPointerLeave={handleMouseLeave}
               />
             </div>
           ))}
@@ -619,9 +695,10 @@ export default function App() {
         >
           <canvas
             ref={singleCanvasRef}
-            onMouseDown={(e) => handleSelectionStart(currentPage, e)}
-            onMouseMove={(e) => handleSelectionMove(currentPage, e)}
-            onMouseLeave={handleMouseLeave}
+            onPointerDown={(e) => handleSelectionStart(currentPage, e)}
+            onPointerMove={(e) => handleSelectionMove(currentPage, e)}
+            onPointerUp={handleSelectionEnd}
+            onPointerLeave={handleMouseLeave}
           />
         </div>
       </div>
