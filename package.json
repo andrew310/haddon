@@ -4,9 +4,14 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "dev": "turbo run dev --filter=haddon-demo",
+    "dev:web": "turbo run dev --filter=haddon-web",
+    "dev:demo": "turbo run dev --filter=haddon-demo",
     "build": "turbo run build",
     "build:wasm": "turbo run build --filter=haddon-wasm",
-    "build:demo": "turbo run build --filter=haddon-demo"
+    "build:demo": "turbo run build --filter=haddon-demo",
+    "build:web": "turbo run build --filter=haddon-web",
+    "infra:up": "docker-compose up -d",
+    "infra:down": "docker-compose down"
   },
   "devDependencies": {
     "turbo": "^2.5.2"
