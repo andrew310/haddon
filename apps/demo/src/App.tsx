@@ -60,6 +60,33 @@ type NoteAnchor = {
 };
 const HIGHLIGHT_STORAGE_PREFIX = "haddon:highlights:";
 
+type Theme = "light" | "dark";
+
+const THEME_STORAGE_KEY = "haddon:theme";
+
+const THEMES = {
+  light: {
+    bg: "#ffffff",
+    text: "#333333",
+    superscript: "#5577bb",
+    highlight: "rgba(255, 215, 80, 0.34)",
+    selection: "rgba(80, 140, 255, 0.28)",
+  },
+  dark: {
+    bg: "#1a1a1a",
+    text: "#d4d4d4",
+    superscript: "#8aa7ff",
+    highlight: "rgba(255, 185, 50, 0.30)",
+    selection: "rgba(100, 160, 255, 0.32)",
+  },
+} as const;
+
+function getInitialTheme(): Theme {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export default function App() {
   const [reader, setReader] = useState<EpubReaderType | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -75,6 +102,7 @@ export default function App() {
     null
   );
   const [savedHighlightCount, setSavedHighlightCount] = useState(0);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [isSelecting, setIsSelecting] = useState(false);
   const [tooltip, setTooltip] = useState<{
     text: string;
@@ -184,14 +212,28 @@ export default function App() {
     return Math.min(container.clientWidth - 32, 800);
   }, []);
 
+  const makeTheme = useCallback(() => {
+    if (!wasmModule) return null;
+    const colors = THEMES[theme];
+    return new wasmModule.RenderTheme(
+      colors.bg,
+      colors.text,
+      colors.superscript,
+      colors.highlight,
+      colors.selection,
+    );
+  }, [theme]);
+
   const renderPage = useCallback(
     (r: EpubReaderType, pageIdx: number, canvas: HTMLCanvasElement | null) => {
       if (!canvas) return;
-      r.render_page(canvas, pageIdx, DPR);
+      const t = makeTheme();
+      if (!t) return;
+      r.render_page(canvas, pageIdx, DPR, t);
       canvas.style.width = `${canvas.width / DPR}px`;
       canvas.style.height = `${canvas.height / DPR}px`;
     },
-    []
+    [makeTheme]
   );
 
   const rerenderAllPages = useCallback(() => {
@@ -532,6 +574,11 @@ export default function App() {
   }, [rerenderAllPages]);
 
   useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c" && selectedText) {
         e.preventDefault();
@@ -548,6 +595,13 @@ export default function App() {
   return (
     <div className="app">
       <header>
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          aria-label="Toggle dark mode"
+        >
+          {theme === "dark" ? "\u2600" : "\u263E"}
+        </button>
         <h1>{title || "Haddon"}</h1>
         {reader && (
           <div className="nav">
