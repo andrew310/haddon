@@ -1,0 +1,195 @@
+/*
+ * CoolReader for Android
+ * Copyright (C) 2013 Alexey Kabelitskiy <akabelytskyi@hmstn.com>
+ * Copyright (C) 2015,2018 Vadim Lopatin <coolreader.org@gmail.com>
+ * Copyright (C) 2018 Aleksey Chernov <valexlin@gmail.com>
+ *
+ * This program is free software: you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation, either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ */
+
+package org.coolreader.crengine;
+
+import org.coolreader.db.CRDBService;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import static org.coolreader.db.CRDBService.FileInfoLoadingCallback;
+
+/**
+ * Manages all content of the 'Browse file system' shelf
+ */
+public class FileSystemFolders extends FileInfoChangeSource {
+    private static final FileInfoLoadingCallback NOOP = new FileInfoLoadingCallback(){
+        @Override
+        public void onFileInfoListLoaded(ArrayList<FileInfo> list) {
+
+        }
+    };
+    private Scanner mScanner;
+
+    private ArrayList<FileInfo> favoriteFolders = null;
+
+    public FileSystemFolders(Scanner scanner) {
+        this.mScanner = scanner;
+    }
+
+    private ArrayList<FileInfo> updateEntries(List<FileInfo> favoriteFolders){
+        ArrayList<FileInfo> dirs = new ArrayList<FileInfo>();
+        Map<String, String> map = Engine.getMountedRootsMap();
+		for (String r : map.keySet()) {
+			if (r.equals("/storage/emulated/legacy")) // hack for Samsung Galaxy S
+				continue;
+			File f = new File(r);
+			String label = map.get(r);
+            FileInfo dir = new FileInfo(f);
+            dir.setType(FileInfo.TYPE_FS_ROOT);
+        	dir.setTitle(label);
+            dirs.add(dir);
+        }
+        dirs.addAll(filter(favoriteFolders));
+        if (Services.getScanner() != null) {
+            FileInfo downloadDirectory = mScanner.getDownloadDirectory();
+            if (downloadDirectory != null) {
+            	downloadDirectory.setType(FileInfo.TYPE_DOWNLOAD_DIR);
+            	dirs.add(downloadDirectory);
+            }
+        }
+        return dirs;
+    }
+
+    private ArrayList<FileInfo> filter(List<FileInfo> favoriteFolders) {
+        ArrayList<FileInfo> filtered = new ArrayList<FileInfo>();
+        if (favoriteFolders != null) {
+            for (FileInfo fi : favoriteFolders) {
+                if (mScanner.isValidFolder(fi))
+                    filtered.add(fi);
+            }
+        }
+        return filtered;
+    }
+
+    public void loadFavoriteFolders(final CRDBService.LocalBinder binder) {
+        loadFavoriteFoldersAndDo(binder, NOOP);
+    }
+
+    public ArrayList<FileInfo> getFileSystemFolders() {
+        return updateEntries(favoriteFolders);
+    }
+
+
+    public boolean canMove(FileInfo folder, boolean left) {
+        int folderIndex = findFavoriteFolder(folder);
+        if(folderIndex == -1)
+            return false;
+        int increment = left? -1: 1;
+        int newIndex = folderIndex + increment;
+        return newIndex >= 0 && newIndex < favoriteFolders.size();
+    }
+
+    public void addFavoriteFolder(final CRDBService.LocalBinder binder, final FileInfo folder){
+        loadFavoriteFoldersAndDo(binder, new FileInfoLoadingCallback(){
+            @Override
+            public void onFileInfoListLoaded(ArrayList<FileInfo> list) {
+                if(findFavoriteFolder(folder) != -1)
+                    return;
+                FileInfo dbFolder = new FileInfo(folder);
+                int maxPos = 0;
+                if(!favoriteFolders.isEmpty()){
+                    FileInfo lastFolder = favoriteFolders.get(favoriteFolders.size()-1);
+                    maxPos = lastFolder.seriesNumber;
+                }
+                dbFolder.seriesNumber = maxPos + 1;
+                binder.createFavoriteFolder(dbFolder);
+                favoriteFolders.add(dbFolder);
+                onChange(dbFolder, false);
+            }
+        });
+    }
+
+    public void moveFavoriteFolder(final CRDBService.LocalBinder binder, final FileInfo folder, final boolean left){
+        loadFavoriteFoldersAndDo(binder, new FileInfoLoadingCallback(){
+            @Override
+            public void onFileInfoListLoaded(ArrayList<FileInfo> list) {
+                int folderIndex = findFavoriteFolder(folder);
+                if(folderIndex == -1)
+                    return;
+                //find new place
+                int increment = left? -1: 1;
+                int newIndex = folderIndex + increment;
+                if(newIndex < 0 || newIndex >= favoriteFolders.size()){
+                    return;
+                }
+                //update this folder index and neighbor's one
+                FileInfo neighbor = favoriteFolders.get(newIndex);
+                int neighbourIdx = neighbor.seriesNumber;
+                neighbor.seriesNumber = folder.seriesNumber;
+                folder.seriesNumber = neighbourIdx;
+                //update place
+                favoriteFolders.set(folderIndex, neighbor);
+                favoriteFolders.set(newIndex, folder);
+                //save changes
+                binder.updateFavoriteFolder(folder);
+                binder.updateFavoriteFolder(neighbor);
+                onChange(folder, false);
+            }
+        });
+    }
+
+    public void removeFavoriteFolder(final CRDBService.LocalBinder binder, final FileInfo folder){
+        loadFavoriteFoldersAndDo(binder, new FileInfoLoadingCallback(){
+            @Override
+            public void onFileInfoListLoaded(ArrayList<FileInfo> list) {
+                int folderIndex = findFavoriteFolder(folder);
+                if(folderIndex == -1)
+                    return;
+                binder.deleteFavoriteFolder(folder);
+                favoriteFolders.remove(folderIndex);
+                onChange(null, false);
+            }
+        });
+    }
+
+
+    private void loadFavoriteFoldersAndDo(final CRDBService.LocalBinder binder, final FileInfoLoadingCallback callback) {
+        if(favoriteFolders == null) {
+            binder.loadFavoriteFolders(new FileInfoLoadingCallback() {
+                @Override
+                public void onFileInfoListLoaded(ArrayList<FileInfo> list) {
+                    favoriteFolders = new ArrayList<FileInfo>(list);
+                    callback.onFileInfoListLoaded(favoriteFolders);
+                    onChange(null,false);
+                }
+            });
+        } else {
+            callback.onFileInfoListLoaded(favoriteFolders);
+        }
+
+    }
+
+    private int findFavoriteFolder(FileInfo folder){
+        if(folder == null || favoriteFolders == null)
+            return -1;
+        int size = favoriteFolders.size();
+        for(int idx = 0; idx < size; ++idx){
+            if(favoriteFolders.get(idx).pathNameEquals(folder)){
+                return idx;
+            }
+        }
+        return -1;
+    }
+}

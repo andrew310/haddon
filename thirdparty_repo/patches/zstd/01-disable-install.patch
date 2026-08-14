@@ -1,0 +1,39 @@
+diff --git a/build/cmake/CMakeLists.txt b/build/cmake/CMakeLists.txt
+--- a/build/cmake/CMakeLists.txt
++++ b/build/cmake/CMakeLists.txt
+@@ -205,8 +205,9 @@ write_basic_package_version_file(
+ 
+ # A Package Config file that works from the build directory
++if(NOT SKIP_INSTALL_ALL)
+ export(EXPORT zstdExports
+     FILE "${CMAKE_CURRENT_BINARY_DIR}/zstdTargets.cmake"
+     NAMESPACE zstd::
+     )
+ 
+ # A Package Config file that works from the installation directory
+@@ -225,4 +226,5 @@ install(FILES
+     "${CMAKE_CURRENT_BINARY_DIR}/zstdConfig.cmake"
+     "${CMAKE_CURRENT_BINARY_DIR}/zstdConfigVersion.cmake"
+     DESTINATION ${ConfigPackageLocation}
+     )
++endif()
+diff --git a/build/cmake/lib/CMakeLists.txt b/build/cmake/lib/CMakeLists.txt
+--- a/build/cmake/lib/CMakeLists.txt
++++ b/build/cmake/lib/CMakeLists.txt
+@@ -268,6 +268,7 @@ set(VERSION "${zstd_VERSION}")
+ 
+ configure_file("${LIBRARY_DIR}/libzstd.pc.in" "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" @ONLY)
++if(NOT SKIP_INSTALL_ALL)
+ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/libzstd.pc" DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig")
+ 
+ # install target
+ install(FILES ${PublicHeaders} DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+@@ -281,7 +282,8 @@ install(TARGETS ${library_targets}
+     BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}"
+     FRAMEWORK DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT runtime OPTIONAL
+     PUBLIC_HEADER DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+     )
++endif()
+ 
+ # uninstall target
+ if (NOT TARGET uninstall)

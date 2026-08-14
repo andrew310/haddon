@@ -1,0 +1,143 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'org.coolreader'
+    compileSdkVersion 35
+    buildToolsVersion "35.0.0"
+    defaultConfig {
+        applicationId "org.coolreader"
+        minSdkVersion 4
+        targetSdkVersion 35
+        // When new version released, version code must be incremented at least by 8
+        // for compatibility with ABI versioning of split apk (see below).
+        versionCode 32570
+        versionName "3.2.59-1"
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_static"
+                cppFlags ""
+            }
+        }
+    }
+    sourceSets {
+        main {
+            setRoot('src/main')
+            aidl.srcDirs = ['../../android/src']
+            java.srcDirs = ['../../android/src']
+            res.srcDirs = ['../../android/res']
+        }
+    }
+    buildTypes {
+        release {
+            // to make the bug report more readable.
+            minifyEnabled false
+            shrinkResources false
+            debuggable false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules-optimize.pro'
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
+                }
+            }
+            packagingOptions{
+                doNotStrip "**/*.so"
+            }
+        }
+        release_stripped {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules-optimize.pro'
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=Release"
+                }
+            }
+        }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+            jniDebuggable true
+            debuggable true
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=Debug"
+                }
+            }
+            packagingOptions{
+                doNotStrip "**/*.so"
+            }
+        }
+    }
+    gradle.projectsEvaluated {
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:unchecked"
+        }
+    }
+    // https://developer.android.com/studio/build/configure-apk-splits
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a' //select ABIs to build APKs for
+            universalApk true //generate an additional APK that contains all the ABIs
+        }
+    }
+     // map for the version code
+    project.ext.abiCodes = [
+            'armeabi': 1,
+            'armeabi-v7a': 2,
+            'arm64-v8a': 6,
+            'mips': 3,
+            'mips64': 7,
+            'x86': 4,
+            'x86_64': 5
+    ]
+    android.applicationVariants.all { variant ->
+        variant.outputs.each { output ->
+            // Stores the value of ext.abiCodes that is associated with the ABI for this variant.
+            def baseAbiVersionCode = project.ext.abiCodes.get(output.getFilter(com.android.build.OutputFile.ABI))
+            if (baseAbiVersionCode != null) {
+                // Variant 1: small version code increment for various ABI (old behaviour)
+                output.versionCodeOverride = variant.versionCode + baseAbiVersionCode
+                // Variant 2: big version code increment for various ABI
+                //output.versionCodeOverride = variant.versionCode + 1000000*baseAbiVersionCode
+            }
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+    lintOptions {
+        disable 'MissingTranslation'
+        checkReleaseBuilds false
+        // Or, if you prefer, you can continue to check for errors in release builds,
+        // but continue the build even when errors are found:
+        abortOnError false
+    }
+    compileOptions {
+        // Sets Java compatibility to Java 8
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    buildFeatures {
+        aidl true
+    }
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+}
+
+task prepareKotlinBuildScriptModel {}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+
+    implementation project(path: ':genrescollection')
+}
