@@ -1,0 +1,1077 @@
+Locale Completion Status
+Reference language: en
+Generated: 2026-08-05T13:41:12.200Z
+
+
+Locale Completion Summary:
+----------------------------------------
+DA     [■■■■■■■■■■■■■■■■■■■■] 100%
+EN     [■■■■■■■■■■■■■■■■■■■■] 100%
+ES     [■■■■■■■■■■■■■■■■■■■■] 100%
+ET     [■■■■■■■■■■■■■■■■■■■■] 100%
+FI     [■■■■■■■■■■■■■■■■■■■■] 100%
+FR     [■■■■■■■■■■■■■■■■■■■■] 100%
+IT     [■■■■■■■■■■■■■■■■■■■■] 100%
+LT     [■■■■■■■■■■■■■■■■■■■■] 100%
+SV     [■■■■■■■■■■■■■■■■■■■■] 100%
+PL     [■■■■■■■■■■■■■■■■■■■□]  96%
+PT-PT  [■■■■■■■■■■■■■■■■■■□□]  90%
+AR     [■■■■■■■■■■■■■■□□□□□□]  73%
+PT-BR  [■■■■■■■■■■■■□□□□□□□□]  63%
+TA     [■■■■■■■■□□□□□□□□□□□□]  43%
+TR     [■■■■■■■■□□□□□□□□□□□□]  40%
+EL     [■■■■■□□□□□□□□□□□□□□□]  25%
+BG     [■□□□□□□□□□□□□□□□□□□□]   5%
+HE     [□□□□□□□□□□□□□□□□□□□□]   3%
+BRH    [□□□□□□□□□□□□□□□□□□□□]   0%
+UK     [□□□□□□□□□□□□□□□□□□□□]   0%
+
+
+Inferred Usage Summary:
+----------------------------------------
+DA     [■■■■■■■■■■■■■■■■■■■■] 100%
+EN     [■■■■■■■■■■■■■■■■■■■■] 100%
+ES     [■■■■■■■■■■■■■■■■■■■■] 100%
+ET     [■■■■■■■■■■■■■■■■■■■■] 100%
+FI     [■■■■■■■■■■■■■■■■■■■■] 100%
+FR     [■■■■■■■■■■■■■■■■■■■■] 100%
+IT     [■■■■■■■■■■■■■■■■■■■■] 100%
+LT     [■■■■■■■■■■■■■■■■■■■■] 100%
+SV     [■■■■■■■■■■■■■■■■■■■■] 100%
+PL     [■■■■■■■■■■■■■■■■■■■■] 100%
+PT-PT  [■■■■■■■■■■■■■■■■□□□□]  84%
+PT-BR  [■■■■■■■■■■■■■□□□□□□□]  69%
+AR     [■■■■■■■■■■■■■□□□□□□□]  65%
+TA     [■■■■■■■■■■■■□□□□□□□□]  63%
+EL     [■■■■■■■■□□□□□□□□□□□□]  42%
+TR     [■■■■■□□□□□□□□□□□□□□□]  29%
+BG     [■■□□□□□□□□□□□□□□□□□□]  10%
+HE     [□□□□□□□□□□□□□□□□□□□□]   4%
+BRH    [□□□□□□□□□□□□□□□□□□□□]   0%
+UK     [□□□□□□□□□□□□□□□□□□□□]   0%
+
+Locale Breakdown:
+----------------------------------------
+
+DA (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+EN (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+ES (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+ET (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+FI (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+FR (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+IT (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+LT (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■■ 100%  (189/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (251/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+SV (100% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■□  99%  (188/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■■ 100%  (250/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+PL (96% complete, 100% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■□  94%  (178/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■■■■■■■■□  96%  (240/251)
+   USED                  ■■■■■■■■■■ 100%  (126/126)
+
+PT-PT (90% complete, 84% of inferred usage)
+   thorium-shared.json   ■■■■■■■■■□  94%  (177/189)
+   thorium-web.json      ■■■■■■■■□□  81%  (50/62)
+   TOTAL                 ■■■■■■■■■□  90%  (227/251)
+   USED                  ■■■■■■■■□□  84%  (106/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (11 keys):
+   • audio.player.coverAlt
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+
+   SHARED (9 keys):
+   • reader.playback.preferences.audio.title
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.sleepTimer.descriptive
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+
+
+AR (73% complete, 65% of inferred usage)
+   thorium-shared.json   ■■■■■■■■□□  80%  (151/189)
+   thorium-web.json      ■■■■■□□□□□  52%  (32/62)
+   TOTAL                 ■■■■■■■□□□  73%  (183/251)
+   USED                  ■■■■■■□□□□  65%  (82/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (26 keys):
+   • reader.jumpToPosition.label
+   • reader.jumpToPosition.error.notFound
+   • reader.overflowMenu.active.trigger
+   • reader.overflowMenu.active.tooltip
+   • audio.player.coverAlt
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.errors.notFound
+   • reader.app.errors.accessDenied
+   • reader.app.errors.network
+   • reader.app.errors.serverError
+   • reader.app.errors.clientError
+   • reader.app.errors.generic
+   • reader.app.errors.title
+   • reader.settings.spacing.advanced.trigger
+   • reader.settings.spacing.advanced.tooltip
+   • reader.settings.text.advanced.trigger
+   • reader.settings.text.advanced.tooltip
+
+   SHARED (18 keys):
+   • reader.playback.preferences.audio.title
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • reader.playback.preferences.audio.volume
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+
+
+PT-BR (63% complete, 69% of inferred usage)
+   thorium-shared.json   ■■■■■■□□□□  61%  (116/189)
+   thorium-web.json      ■■■■■■□□□□  66%  (41/62)
+   TOTAL                 ■■■■■■□□□□  63%  (157/251)
+   USED                  ■■■■■■□□□□  69%  (87/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (19 keys):
+   • reader.jumpToPosition.error.notFound
+   • audio.player.coverAlt
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.errors.notFound
+   • reader.app.errors.accessDenied
+   • reader.app.errors.network
+   • reader.app.errors.serverError
+   • reader.app.errors.clientError
+   • reader.app.errors.generic
+   • reader.app.errors.title
+
+   SHARED (20 keys):
+   • reader.playback.preferences.audio.title
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • reader.playback.preferences.audio.volume
+   • reader.actions.goToNextResource.descriptive
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.actions.goToPreviousResource.descriptive
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+
+
+TA (43% complete, 63% of inferred usage)
+   thorium-shared.json   ■■■□□□□□□□  35%  (66/189)
+   thorium-web.json      ■■■■■■□□□□  66%  (41/62)
+   TOTAL                 ■■■■□□□□□□  43%  (107/251)
+   USED                  ■■■■■■□□□□  63%  (80/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (19 keys):
+   • reader.jumpToPosition.error.notFound
+   • audio.player.coverAlt
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.errors.notFound
+   • reader.app.errors.accessDenied
+   • reader.app.errors.network
+   • reader.app.errors.serverError
+   • reader.app.errors.clientError
+   • reader.app.errors.generic
+   • reader.app.errors.title
+
+   SHARED (27 keys):
+   • reader.playback.preferences.audio.title
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • common.actions.cancel
+   • reader.playback.preferences.audio.volume
+   • reader.actions.goToNextResource.descriptive
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.actions.goToPreviousResource.descriptive
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • reader.preferences.columns.single.compact
+   • reader.preferences.columns.dual.compact
+   • reader.preferences.spacing.presets.title
+   • common.actions.reset
+   • reader.preferences.fontWeight.normal
+   • reader.preferences.fontWeight.bold
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+
+
+TR (40% complete, 29% of inferred usage)
+   thorium-shared.json   ■■■■■□□□□□  53%  (101/189)
+   thorium-web.json      □□□□□□□□□□   0%  (0/62)
+   TOTAL                 ■■■■□□□□□□  40%  (101/251)
+   USED                  ■■□□□□□□□□  29%  (37/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (53 keys):
+   • reader.fullscreen.close
+   • reader.fullscreen.trigger
+   • reader.fullscreen.tooltip
+   • reader.jumpToPosition.label
+   • reader.jumpToPosition.error.notFound
+   • reader.jumpToPosition.go
+   • reader.overflowMenu.active.trigger
+   • reader.overflowMenu.active.tooltip
+   • reader.toc.entries
+   • audio.player.coverAlt
+   • reader.app.header.actions
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.docker.fullscreen.trigger
+   • reader.app.docker.fullscreen.tooltip
+   • reader.app.docker.popover.trigger
+   • reader.app.docker.popover.tooltip
+   • reader.app.docker.wrapper
+   • reader.app.docking.dockingRight
+   • reader.app.docking.dockingLeft
+   • reader.app.docking.dockingClosed
+   • reader.app.docking.dockingCollapsed
+   • reader.app.docking.dockingEmpty
+   • reader.app.publicationWrapper
+   • reader.app.errors.notFound
+   • reader.app.errors.accessDenied
+   • reader.app.errors.network
+   • reader.app.errors.serverError
+   • reader.app.errors.clientError
+   • reader.app.errors.generic
+   • reader.app.errors.title
+   • reader.app.loading
+   • reader.settings.spacing.advanced.trigger
+   • reader.settings.spacing.advanced.tooltip
+   • reader.settings.text.advanced.trigger
+   • reader.settings.text.advanced.tooltip
+   • reader.app.back.trigger
+   • reader.app.header.backLink.tooltip
+   • reader.app.header.backLink.trigger
+   • reader.app.footer.label
+   • reader.navigation.scroll.wrapper
+   • reader.app.header.label
+   • reader.app.progression.referenceFallback
+   • reader.app.progression.wrapper
+   • reader.app.header.runningHead
+
+   SHARED (36 keys):
+   • reader.preferences.text
+   • reader.preferences.spacing.title
+   • reader.tableOfContents.title
+   • reader.tableOfContents.emptyState.description
+   • reader.preferences.layout.paginated
+   • reader.preferences.layout.scrolled
+   • reader.preferences.layout.title
+   • reader.preferences.letterSpacing
+   • reader.preferences.lineHeight.small
+   • reader.preferences.lineHeight.medium
+   • reader.preferences.lineHeight.large
+   • reader.preferences.lineHeight.default
+   • reader.preferences.lineHeight.title
+   • reader.preferences.paragraphIndent
+   • reader.preferences.paragraphSpacing
+   • reader.preferences.spacing.presets.title
+   • reader.preferences.wordSpacing
+   • reader.preferences.publisherStyles.label
+   • reader.preferences.themes.title
+   • reader.preferences.zoom
+   • reader.preferences.fontWeight.normal
+   • reader.preferences.fontWeight.bold
+   • reader.preferences.fontWeight.title
+   • reader.preferences.hyphens.title
+   • reader.preferences.hyphens.label
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+   • reader.preferences.textAlign.default
+   • reader.preferences.textAlign.right
+   • reader.preferences.textAlign.left
+   • reader.preferences.textAlign.justify
+   • reader.preferences.textAlign.title
+   • reader.preferences.textNormalization.title
+   • reader.preferences.textNormalization.label
+
+
+EL (25% complete, 42% of inferred usage)
+   thorium-shared.json   □□□□□□□□□□   0%  (0/189)
+   thorium-web.json      ■■■■■■■■■■ 100%  (62/62)
+   TOTAL                 ■■□□□□□□□□  25%  (62/251)
+   USED                  ■■■■□□□□□□  42%  (53/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+
+   SHARED (73 keys):
+   • reader.actions.goToPosition.descriptive
+   • reader.actions.goToPosition.compact
+   • reader.playback.preferences.audio.title
+   • reader.preferences.title
+   • reader.preferences.text
+   • reader.preferences.spacing.title
+   • reader.tableOfContents.title
+   • reader.tableOfContents.emptyState.description
+   • common.actions.search
+   • common.actions.clear
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • common.actions.decrease
+   • common.actions.increase
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • common.actions.cancel
+   • reader.playback.preferences.audio.volume
+   • reader.actions.goToNextResource.descriptive
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.actions.goToPreviousResource.descriptive
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • common.actions.close
+   • reader.preferences.columns.auto
+   • reader.preferences.columns.single.compact
+   • reader.preferences.columns.dual.compact
+   • reader.preferences.columns.title
+   • reader.preferences.layout.paginated
+   • reader.preferences.layout.scrolled
+   • reader.preferences.layout.title
+   • reader.preferences.letterSpacing
+   • reader.preferences.lineHeight.small
+   • reader.preferences.lineHeight.medium
+   • reader.preferences.lineHeight.large
+   • reader.preferences.lineHeight.default
+   • reader.preferences.lineHeight.title
+   • reader.preferences.paragraphIndent
+   • reader.preferences.paragraphSpacing
+   • reader.preferences.spacing.presets.title
+   • reader.preferences.wordSpacing
+   • common.actions.reset
+   • reader.preferences.publisherStyles.label
+   • reader.preferences.themes.title
+   • reader.preferences.zoom
+   • reader.preferences.fontSize
+   • reader.preferences.fontFamily.publisher
+   • reader.preferences.fontFamily.title
+   • reader.preferences.fontWeight.normal
+   • reader.preferences.fontWeight.bold
+   • reader.preferences.fontWeight.title
+   • reader.preferences.hyphens.title
+   • reader.preferences.hyphens.label
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+   • reader.preferences.textAlign.default
+   • reader.preferences.textAlign.right
+   • reader.preferences.textAlign.left
+   • reader.preferences.textAlign.justify
+   • reader.preferences.textAlign.title
+   • reader.preferences.textNormalization.title
+   • reader.preferences.textNormalization.label
+   • reader.actions.goForward
+   • reader.actions.goBackward
+   • reader.progression.xOfY.compact
+   • reader.progression.xOfY.descriptive
+
+
+BG (5% complete, 10% of inferred usage)
+   thorium-shared.json   □□□□□□□□□□   0%  (0/189)
+   thorium-web.json      ■■□□□□□□□□  21%  (13/62)
+   TOTAL                 □□□□□□□□□□   5%  (13/251)
+   USED                  ■□□□□□□□□□  10%  (12/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (41 keys):
+   • reader.fullscreen.close
+   • reader.fullscreen.trigger
+   • reader.fullscreen.tooltip
+   • reader.jumpToPosition.label
+   • reader.jumpToPosition.error.notFound
+   • reader.jumpToPosition.go
+   • reader.overflowMenu.active.trigger
+   • reader.overflowMenu.active.tooltip
+   • reader.toc.entries
+   • audio.player.coverAlt
+   • reader.app.header.actions
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.docker.fullscreen.trigger
+   • reader.app.docker.fullscreen.tooltip
+   • reader.app.docker.popover.trigger
+   • reader.app.docker.popover.tooltip
+   • reader.app.docker.wrapper
+   • reader.app.docking.dockingClosed
+   • reader.app.docking.dockingCollapsed
+   • reader.settings.spacing.advanced.trigger
+   • reader.settings.spacing.advanced.tooltip
+   • reader.settings.text.advanced.trigger
+   • reader.settings.text.advanced.tooltip
+   • reader.app.back.trigger
+   • reader.app.header.backLink.tooltip
+   • reader.app.header.backLink.trigger
+   • reader.app.footer.label
+   • reader.navigation.scroll.wrapper
+   • reader.app.header.label
+   • reader.app.progression.referenceFallback
+   • reader.app.progression.wrapper
+   • reader.app.header.runningHead
+
+   SHARED (73 keys):
+   • reader.actions.goToPosition.descriptive
+   • reader.actions.goToPosition.compact
+   • reader.playback.preferences.audio.title
+   • reader.preferences.title
+   • reader.preferences.text
+   • reader.preferences.spacing.title
+   • reader.tableOfContents.title
+   • reader.tableOfContents.emptyState.description
+   • common.actions.search
+   • common.actions.clear
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • common.actions.decrease
+   • common.actions.increase
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • common.actions.cancel
+   • reader.playback.preferences.audio.volume
+   • reader.actions.goToNextResource.descriptive
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.actions.goToPreviousResource.descriptive
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • common.actions.close
+   • reader.preferences.columns.auto
+   • reader.preferences.columns.single.compact
+   • reader.preferences.columns.dual.compact
+   • reader.preferences.columns.title
+   • reader.preferences.layout.paginated
+   • reader.preferences.layout.scrolled
+   • reader.preferences.layout.title
+   • reader.preferences.letterSpacing
+   • reader.preferences.lineHeight.small
+   • reader.preferences.lineHeight.medium
+   • reader.preferences.lineHeight.large
+   • reader.preferences.lineHeight.default
+   • reader.preferences.lineHeight.title
+   • reader.preferences.paragraphIndent
+   • reader.preferences.paragraphSpacing
+   • reader.preferences.spacing.presets.title
+   • reader.preferences.wordSpacing
+   • common.actions.reset
+   • reader.preferences.publisherStyles.label
+   • reader.preferences.themes.title
+   • reader.preferences.zoom
+   • reader.preferences.fontSize
+   • reader.preferences.fontFamily.publisher
+   • reader.preferences.fontFamily.title
+   • reader.preferences.fontWeight.normal
+   • reader.preferences.fontWeight.bold
+   • reader.preferences.fontWeight.title
+   • reader.preferences.hyphens.title
+   • reader.preferences.hyphens.label
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+   • reader.preferences.textAlign.default
+   • reader.preferences.textAlign.right
+   • reader.preferences.textAlign.left
+   • reader.preferences.textAlign.justify
+   • reader.preferences.textAlign.title
+   • reader.preferences.textNormalization.title
+   • reader.preferences.textNormalization.label
+   • reader.actions.goForward
+   • reader.actions.goBackward
+   • reader.progression.xOfY.compact
+   • reader.progression.xOfY.descriptive
+
+
+HE (3% complete, 4% of inferred usage)
+   thorium-shared.json   □□□□□□□□□□   2%  (4/189)
+   thorium-web.json      □□□□□□□□□□   5%  (3/62)
+   TOTAL                 □□□□□□□□□□   3%  (7/251)
+   USED                  □□□□□□□□□□   4%  (5/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (51 keys):
+   • reader.fullscreen.close
+   • reader.fullscreen.trigger
+   • reader.fullscreen.tooltip
+   • reader.jumpToPosition.label
+   • reader.jumpToPosition.error.notFound
+   • reader.jumpToPosition.go
+   • reader.overflowMenu.active.trigger
+   • reader.overflowMenu.active.tooltip
+   • reader.toc.entries
+   • audio.player.coverAlt
+   • reader.app.header.actions
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.docker.fullscreen.trigger
+   • reader.app.docker.fullscreen.tooltip
+   • reader.app.docker.popover.trigger
+   • reader.app.docker.popover.tooltip
+   • reader.app.docker.wrapper
+   • reader.app.docking.dockingRight
+   • reader.app.docking.dockingLeft
+   • reader.app.docking.dockingClosed
+   • reader.app.docking.dockingCollapsed
+   • reader.app.docking.dockingEmpty
+   • reader.app.errors.notFound
+   • reader.app.errors.accessDenied
+   • reader.app.errors.network
+   • reader.app.errors.serverError
+   • reader.app.errors.clientError
+   • reader.app.errors.generic
+   • reader.app.errors.title
+   • reader.settings.spacing.advanced.trigger
+   • reader.settings.spacing.advanced.tooltip
+   • reader.settings.text.advanced.trigger
+   • reader.settings.text.advanced.tooltip
+   • reader.app.back.trigger
+   • reader.app.header.backLink.tooltip
+   • reader.app.header.backLink.trigger
+   • reader.app.footer.label
+   • reader.navigation.scroll.wrapper
+   • reader.app.header.label
+   • reader.app.progression.referenceFallback
+   • reader.app.progression.wrapper
+   • reader.app.header.runningHead
+
+   SHARED (70 keys):
+   • reader.actions.goToPosition.descriptive
+   • reader.actions.goToPosition.compact
+   • reader.playback.preferences.audio.title
+   • reader.preferences.title
+   • reader.preferences.text
+   • reader.preferences.spacing.title
+   • reader.tableOfContents.title
+   • reader.tableOfContents.emptyState.description
+   • common.actions.search
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • common.actions.decrease
+   • common.actions.increase
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • reader.playback.preferences.audio.volume
+   • reader.actions.goToNextResource.descriptive
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.actions.goToPreviousResource.descriptive
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • reader.preferences.columns.auto
+   • reader.preferences.columns.single.compact
+   • reader.preferences.columns.dual.compact
+   • reader.preferences.columns.title
+   • reader.preferences.layout.paginated
+   • reader.preferences.layout.scrolled
+   • reader.preferences.layout.title
+   • reader.preferences.letterSpacing
+   • reader.preferences.lineHeight.small
+   • reader.preferences.lineHeight.medium
+   • reader.preferences.lineHeight.large
+   • reader.preferences.lineHeight.default
+   • reader.preferences.lineHeight.title
+   • reader.preferences.paragraphIndent
+   • reader.preferences.paragraphSpacing
+   • reader.preferences.spacing.presets.title
+   • reader.preferences.wordSpacing
+   • common.actions.reset
+   • reader.preferences.publisherStyles.label
+   • reader.preferences.themes.title
+   • reader.preferences.zoom
+   • reader.preferences.fontSize
+   • reader.preferences.fontFamily.publisher
+   • reader.preferences.fontFamily.title
+   • reader.preferences.fontWeight.normal
+   • reader.preferences.fontWeight.bold
+   • reader.preferences.fontWeight.title
+   • reader.preferences.hyphens.title
+   • reader.preferences.hyphens.label
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+   • reader.preferences.textAlign.default
+   • reader.preferences.textAlign.right
+   • reader.preferences.textAlign.left
+   • reader.preferences.textAlign.justify
+   • reader.preferences.textAlign.title
+   • reader.preferences.textNormalization.title
+   • reader.preferences.textNormalization.label
+   • reader.actions.goForward
+   • reader.actions.goBackward
+   • reader.progression.xOfY.compact
+   • reader.progression.xOfY.descriptive
+
+
+BRH (0% complete, 0% of inferred usage)
+   thorium-shared.json   □□□□□□□□□□   0%  (0/189)
+   thorium-web.json      □□□□□□□□□□   0%  (0/62)
+   TOTAL                 □□□□□□□□□□   0%  (0/251)
+   USED                  □□□□□□□□□□   0%  (0/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (53 keys):
+   • reader.fullscreen.close
+   • reader.fullscreen.trigger
+   • reader.fullscreen.tooltip
+   • reader.jumpToPosition.label
+   • reader.jumpToPosition.error.notFound
+   • reader.jumpToPosition.go
+   • reader.overflowMenu.active.trigger
+   • reader.overflowMenu.active.tooltip
+   • reader.toc.entries
+   • audio.player.coverAlt
+   • reader.app.header.actions
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.docker.fullscreen.trigger
+   • reader.app.docker.fullscreen.tooltip
+   • reader.app.docker.popover.trigger
+   • reader.app.docker.popover.tooltip
+   • reader.app.docker.wrapper
+   • reader.app.docking.dockingRight
+   • reader.app.docking.dockingLeft
+   • reader.app.docking.dockingClosed
+   • reader.app.docking.dockingCollapsed
+   • reader.app.docking.dockingEmpty
+   • reader.app.publicationWrapper
+   • reader.app.errors.notFound
+   • reader.app.errors.accessDenied
+   • reader.app.errors.network
+   • reader.app.errors.serverError
+   • reader.app.errors.clientError
+   • reader.app.errors.generic
+   • reader.app.errors.title
+   • reader.app.loading
+   • reader.settings.spacing.advanced.trigger
+   • reader.settings.spacing.advanced.tooltip
+   • reader.settings.text.advanced.trigger
+   • reader.settings.text.advanced.tooltip
+   • reader.app.back.trigger
+   • reader.app.header.backLink.tooltip
+   • reader.app.header.backLink.trigger
+   • reader.app.footer.label
+   • reader.navigation.scroll.wrapper
+   • reader.app.header.label
+   • reader.app.progression.referenceFallback
+   • reader.app.progression.wrapper
+   • reader.app.header.runningHead
+
+   SHARED (73 keys):
+   • reader.actions.goToPosition.descriptive
+   • reader.actions.goToPosition.compact
+   • reader.playback.preferences.audio.title
+   • reader.preferences.title
+   • reader.preferences.text
+   • reader.preferences.spacing.title
+   • reader.tableOfContents.title
+   • reader.tableOfContents.emptyState.description
+   • common.actions.search
+   • common.actions.clear
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • common.actions.decrease
+   • common.actions.increase
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • common.actions.cancel
+   • reader.playback.preferences.audio.volume
+   • reader.actions.goToNextResource.descriptive
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.actions.goToPreviousResource.descriptive
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • common.actions.close
+   • reader.preferences.columns.auto
+   • reader.preferences.columns.single.compact
+   • reader.preferences.columns.dual.compact
+   • reader.preferences.columns.title
+   • reader.preferences.layout.paginated
+   • reader.preferences.layout.scrolled
+   • reader.preferences.layout.title
+   • reader.preferences.letterSpacing
+   • reader.preferences.lineHeight.small
+   • reader.preferences.lineHeight.medium
+   • reader.preferences.lineHeight.large
+   • reader.preferences.lineHeight.default
+   • reader.preferences.lineHeight.title
+   • reader.preferences.paragraphIndent
+   • reader.preferences.paragraphSpacing
+   • reader.preferences.spacing.presets.title
+   • reader.preferences.wordSpacing
+   • common.actions.reset
+   • reader.preferences.publisherStyles.label
+   • reader.preferences.themes.title
+   • reader.preferences.zoom
+   • reader.preferences.fontSize
+   • reader.preferences.fontFamily.publisher
+   • reader.preferences.fontFamily.title
+   • reader.preferences.fontWeight.normal
+   • reader.preferences.fontWeight.bold
+   • reader.preferences.fontWeight.title
+   • reader.preferences.hyphens.title
+   • reader.preferences.hyphens.label
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+   • reader.preferences.textAlign.default
+   • reader.preferences.textAlign.right
+   • reader.preferences.textAlign.left
+   • reader.preferences.textAlign.justify
+   • reader.preferences.textAlign.title
+   • reader.preferences.textNormalization.title
+   • reader.preferences.textNormalization.label
+   • reader.actions.goForward
+   • reader.actions.goBackward
+   • reader.progression.xOfY.compact
+   • reader.progression.xOfY.descriptive
+
+
+UK (0% complete, 0% of inferred usage)
+   thorium-shared.json   □□□□□□□□□□   0%  (0/189)
+   thorium-web.json      □□□□□□□□□□   0%  (0/62)
+   TOTAL                 □□□□□□□□□□   0%  (0/251)
+   USED                  □□□□□□□□□□   0%  (0/126)
+
+   ----------------------------------------
+   Missing Keys:
+
+   WEB (53 keys):
+   • reader.fullscreen.close
+   • reader.fullscreen.trigger
+   • reader.fullscreen.tooltip
+   • reader.jumpToPosition.label
+   • reader.jumpToPosition.error.notFound
+   • reader.jumpToPosition.go
+   • reader.overflowMenu.active.trigger
+   • reader.overflowMenu.active.tooltip
+   • reader.toc.entries
+   • audio.player.coverAlt
+   • reader.app.header.actions
+   • audio.remotePlayback.connected
+   • audio.remotePlayback.trigger
+   • audio.settings.sleepTimer.minutes
+   • audio.settings.sleepTimer.seconds
+   • audio.settings.sleepTimer.hours
+   • audio.settings.sleepTimer.remaining
+   • audio.settings.sleepTimer.instruction
+   • audio.settings.sleepTimer.start
+   • audio.player.controls
+   • audio.player.progress
+   • reader.app.docker.fullscreen.trigger
+   • reader.app.docker.fullscreen.tooltip
+   • reader.app.docker.popover.trigger
+   • reader.app.docker.popover.tooltip
+   • reader.app.docker.wrapper
+   • reader.app.docking.dockingRight
+   • reader.app.docking.dockingLeft
+   • reader.app.docking.dockingClosed
+   • reader.app.docking.dockingCollapsed
+   • reader.app.docking.dockingEmpty
+   • reader.app.publicationWrapper
+   • reader.app.errors.notFound
+   • reader.app.errors.accessDenied
+   • reader.app.errors.network
+   • reader.app.errors.serverError
+   • reader.app.errors.clientError
+   • reader.app.errors.generic
+   • reader.app.errors.title
+   • reader.app.loading
+   • reader.settings.spacing.advanced.trigger
+   • reader.settings.spacing.advanced.tooltip
+   • reader.settings.text.advanced.trigger
+   • reader.settings.text.advanced.tooltip
+   • reader.app.back.trigger
+   • reader.app.header.backLink.tooltip
+   • reader.app.header.backLink.trigger
+   • reader.app.footer.label
+   • reader.navigation.scroll.wrapper
+   • reader.app.header.label
+   • reader.app.progression.referenceFallback
+   • reader.app.progression.wrapper
+   • reader.app.header.runningHead
+
+   SHARED (73 keys):
+   • reader.actions.goToPosition.descriptive
+   • reader.actions.goToPosition.compact
+   • reader.playback.preferences.audio.title
+   • reader.preferences.title
+   • reader.preferences.text
+   • reader.preferences.spacing.title
+   • reader.tableOfContents.title
+   • reader.tableOfContents.emptyState.description
+   • common.actions.search
+   • common.actions.clear
+   • reader.playback.preferences.autoPlay.title
+   • reader.playback.preferences.autoPlay.label
+   • reader.playback.preferences.audio.skipBackwardInterval
+   • common.actions.decrease
+   • common.actions.increase
+   • reader.playback.preferences.audio.skipForwardInterval
+   • reader.playback.preferences.audio.skipInterval
+   • reader.playback.preferences.playbackRate.descriptive
+   • reader.playback.preferences.sleepTimer.presets.endOfResource
+   • reader.playback.preferences.sleepTimer.descriptive
+   • common.actions.cancel
+   • reader.playback.preferences.audio.volume
+   • reader.actions.goToNextResource.descriptive
+   • reader.playback.actions.pause
+   • reader.playback.actions.play
+   • reader.actions.goToPreviousResource.descriptive
+   • reader.playback.actions.skipBackward.descriptive
+   • reader.playback.actions.skipForward.descriptive
+   • common.actions.close
+   • reader.preferences.columns.auto
+   • reader.preferences.columns.single.compact
+   • reader.preferences.columns.dual.compact
+   • reader.preferences.columns.title
+   • reader.preferences.layout.paginated
+   • reader.preferences.layout.scrolled
+   • reader.preferences.layout.title
+   • reader.preferences.letterSpacing
+   • reader.preferences.lineHeight.small
+   • reader.preferences.lineHeight.medium
+   • reader.preferences.lineHeight.large
+   • reader.preferences.lineHeight.default
+   • reader.preferences.lineHeight.title
+   • reader.preferences.paragraphIndent
+   • reader.preferences.paragraphSpacing
+   • reader.preferences.spacing.presets.title
+   • reader.preferences.wordSpacing
+   • common.actions.reset
+   • reader.preferences.publisherStyles.label
+   • reader.preferences.themes.title
+   • reader.preferences.zoom
+   • reader.preferences.fontSize
+   • reader.preferences.fontFamily.publisher
+   • reader.preferences.fontFamily.title
+   • reader.preferences.fontWeight.normal
+   • reader.preferences.fontWeight.bold
+   • reader.preferences.fontWeight.title
+   • reader.preferences.hyphens.title
+   • reader.preferences.hyphens.label
+   • reader.preferences.ligatures.title
+   • reader.preferences.ligatures.label
+   • reader.preferences.noRuby.title
+   • reader.preferences.noRuby.label
+   • reader.preferences.textAlign.default
+   • reader.preferences.textAlign.right
+   • reader.preferences.textAlign.left
+   • reader.preferences.textAlign.justify
+   • reader.preferences.textAlign.title
+   • reader.preferences.textNormalization.title
+   • reader.preferences.textNormalization.label
+   • reader.actions.goForward
+   • reader.actions.goBackward
+   • reader.progression.xOfY.compact
+   • reader.progression.xOfY.descriptive
+
+
+
+==================================================
+DYNAMIC TEMPLATE LITERALS WARNING
+==================================================
+
+⚠️  Found 8 dynamic template literal(s) that need manual checking:
+   📄 components/Docking/StatefulDockEnd.tsx:36
+      t(`${ translationKey }.trigger`)
+   📄 components/Docking/StatefulDockEnd.tsx:37
+      t(`${ translationKey }.tooltip`)
+   📄 components/Docking/StatefulDockStart.tsx:36
+      t(`${ translationKey }.trigger`)
+   📄 components/Docking/StatefulDockStart.tsx:37
+      t(`${ translationKey }.tooltip`)
+   📄 components/Docking/StatefulDockingWrapper.tsx:109
+      t(`reader.${ actionKey }.heading`)
+   📄 components/Docking/StatefulDockingWrapper.tsx:111
+      t(`reader.${ actionKey }.heading`)
+   📄 components/Settings/Spacing/StatefulSpacingPresets.tsx:171
+      t(`reader.preferences.spacing.presets.${ key === ThSpacingPresetKeys.publisher ? "default" : key }`)
+   📄 components/Settings/StatefulTheme.tsx:176
+      t(`reader.preferences.themes.${ themeItem }`)
+
+   These patterns depend on runtime values and cannot be automatically validated.
+   Please verify the corresponding translation keys exist in all locale files.

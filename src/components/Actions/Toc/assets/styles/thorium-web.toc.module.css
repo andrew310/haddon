@@ -1,0 +1,155 @@
+/* Search */
+.wrapper {}
+
+.search {
+  margin-bottom: var(--th-layout-spacing);
+  display: grid;
+  grid-template-areas: "label label"
+                       "input button";
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  width: 100%;
+}
+
+.searchLabel {
+  grid-area: label;
+  margin-bottom: calc(var(--th-layout-spacing) / 2);
+}
+
+.searchInput {
+  grid-area: input;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  border-radius: var(--th-layout-radius);
+  border: 2px solid var(--th-theme-subdue);
+  padding: calc(var(--th-icon-size, 24px) * (1/4)) calc(var(--th-layout-spacing) / 2);
+}
+
+.searchInput::-webkit-search-cancel-button,
+.searchInput::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+.searchInput[data-focus-visible] {
+  outline: 2px solid var(--th-theme-focus);
+}
+
+.searchIcon,
+.clearButton {
+  grid-area: button;
+  margin-inline-start: calc(var(--th-icon-size, 24px) * -1.25);
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon svg {
+  fill: var(--th-theme-subdue);
+  width: var(--th-icon-size, 24px);
+  height: var(--th-icon-size, 24px);
+}
+
+.clearButton svg {
+  fill: var(--th-theme-text);
+  width: var(--th-icon-size, 24px);
+  height: var(--th-icon-size, 24px);
+}
+
+.searchIcon[hidden],
+.clearButton[data-disabled]  {
+  display: none;
+}
+
+.tree {
+  background: var(--th-theme-background);
+  color: var(--th-theme-text);
+  outline: none;
+  width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+}
+
+/* React Aria is providing a --tree-item-level as items are not nested */
+.treeItem {
+  display: flex;
+  padding: calc(var(--th-layout-spacing) / 2);
+  padding-inline-start: calc(((var(--tree-item-level) - 1) * var(--th-layout-spacing)) + (var(--th-layout-spacing) / 2));
+  border-radius: var(--th-layout-radius);
+  border: 2px solid transparent;
+  box-sizing: border-box;
+}
+
+.tree:has(.treeItemButton) .treeItem {
+  padding-inline-start: calc((var(--tree-item-level) * var(--th-layout-spacing)) + (var(--th-layout-spacing) / 2));
+}
+
+.tree .treeItem:has(.treeItemButton) {
+  padding-inline-start: calc(((var(--tree-item-level) - 1) * var(--th-layout-spacing)));
+}
+
+.treeItemText {
+  display: flex;
+  flex: 1 1 auto;
+}
+
+.treeItemTextTitle {
+  text-wrap: balance;
+}
+
+.treeItemTextPosition {
+  margin-inline-start: auto;
+  padding-inline-start: calc(var(--th-layout-spacing) / 2);
+  color: var(--th-theme-subdue);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.treeItemButton {
+  align-self: flex-start;
+  width: calc(var(--th-icon-size, 24px) * 5/6);
+  height: calc(var(--th-icon-size, 24px) * 5/6);
+  margin-inline-end: calc(var(--th-layout-spacing) / 2);
+  flex-shrink: 0;
+}
+
+.treeItem[data-href] {
+  cursor: pointer;
+}
+
+/* [data-hover] is only updated on tree items that can be expanded ATM… */
+.treeItem:hover {
+  background-color: var(--th-theme-hover);
+  color: var(--th-theme-onHover);
+}
+
+.treeItem[data-focus-visible] {
+  outline: 2px solid var(--th-theme-focus);
+}
+
+.treeItem[data-disabled] {
+  color: var(--th-theme-disable);
+}
+
+.treeItem[data-selected] {
+  border: 2px solid var(--th-theme-subdue);
+}
+
+.treeItemButton svg {
+  flex: none;
+  rotate: 0deg;
+  transition: rotate 200ms;
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+.treeItem[data-expanded] .treeItemButton svg {
+  rotate: 90deg;
+}
+
+.empty {
+  max-width: 25ch;
+  text-align: start;
+  text-wrap: balance;
+}

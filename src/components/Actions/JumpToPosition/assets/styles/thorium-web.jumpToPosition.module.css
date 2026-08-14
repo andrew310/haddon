@@ -1,0 +1,44 @@
+.wrapper {}
+
+.form {
+  display: flex;
+  gap: calc(var(--th-layout-spacing) / 2);
+}
+
+.label {
+  margin-block: 0 var(--th-layout-spacing);
+  display: block;
+}
+
+.input {
+  display: block;
+  font-weight: bold;
+  padding: calc(var(--th-icon-size, 24px) * (1/4)) calc(var(--th-layout-spacing) / 2);
+  border-radius: var(--th-layout-radius);
+  border: 2px solid var(--th-theme-subdue);
+}
+
+.button {
+  box-sizing: content-box;
+  border: 2px solid var(--th-theme-subdue);
+  padding: calc(var(--th-icon-size, 24px) * (1/4)) calc(var(--th-icon-size, 24px) * (1/2));
+  text-align: center;
+  border-radius: var(--th-layout-radius);
+  margin-inline-start: auto;
+  align-self: flex-end;
+}
+
+.button[data-hovered] {
+  background-color: var(--th-theme-hover);
+  color: var(--th-theme-onHover);
+}
+
+.input[data-focus-visible],
+.button[data-focus-visible] {
+  outline: 2px solid var(--th-theme-focus);
+}
+
+.numberField[data-disabled],
+.button[data-disabled] {
+  color: var(--th-theme-disable);
+} 

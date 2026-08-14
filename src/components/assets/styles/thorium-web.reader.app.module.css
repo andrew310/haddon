@@ -1,0 +1,201 @@
+/* For some classNames we need global, as they impact other modules */
+
+.wrapper {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
+.main {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.shell {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.leftDock {
+  height: 100vh;
+  height: 100dvh;
+}
+
+.rightDock {
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Top and bottom bars */
+
+.bottomBar,
+.topBar {
+  box-sizing: border-box;
+  gap: 2px;
+  touch-action: manipulation;
+  background-color: var(--th-theme-background);
+}
+
+.bottomBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Stacked UI */
+
+.main :global(.thorium_web_stackedUI) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100%;
+  background-color: var(--th-theme-background);
+}
+
+:global(.thorium_web_stackedUI) .topBar,
+:global(.thorium_web_stackedUI) .bottomBar {
+  flex: 0 0 calc(var(--th-icon-size, 24px) * 2.5);
+  height: calc(var(--th-icon-size, 24px) * 2.5);
+}
+
+:global(.thorium_web_stackedUI.thorium_web_isImmersive:not(.thorium_web_isHovering)) .topBar,
+:global(.thorium_web_stackedUI.thorium_web_isImmersive:not(.thorium_web_isHovering)) .bottomBar {
+  opacity: var(--th-theme-immerse);
+}
+
+/* Layered UI */
+
+.main :global(.thorium_web_layeredUI) {
+  position: relative;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100%;
+  background-color: var(--th-theme-background);
+}
+
+:global(.thorium_web_layeredUI) .topBar,
+:global(.thorium_web_layeredUI) .bottomBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(var(--th-icon-size, 24px) * 2.5);
+  z-index: 2;
+  box-shadow: var(--th-theme-elevate);
+  overflow: hidden;
+  transition-property: transform, box-shadow;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+  transform: translateY(0);
+}
+
+:global(.thorium_web_layeredUI) .topBar {
+  top: 0;
+}
+
+:global(.thorium_web_layeredUI) .bottomBar {
+  bottom: 0;
+}
+
+:global(.thorium_web_layeredUI.thorium_web_isImmersive:not(.thorium_web_isHovering)) .topBar {
+  transform: translateY(calc(var(--th-icon-size, 24px) * -2.5));
+  box-shadow: none;
+  overflow: unset;
+}
+
+:global(.thorium_web_layeredUI.thorium_web_isImmersive:not(.thorium_web_isHovering)) .bottomBar {
+  transform: translateY(calc(var(--th-icon-size, 24px) * 2.5));
+  box-shadow: none;
+}
+
+.barOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(var(--th-icon-size, 24px) * 2.5);
+  pointer-events: auto;
+  opacity: 0;
+  z-index: 1000;
+}
+
+.headerOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(var(--th-icon-size, 24px) * 2.5);
+  pointer-events: auto;
+  opacity: 0;
+  z-index: 1000;
+  top: 0;
+}
+
+.footerOverlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(var(--th-icon-size, 24px) * 2.5);
+  pointer-events: auto;
+  opacity: 0;
+  z-index: 1000;
+  bottom: 0;
+}
+
+/* iFrame + its container */
+
+.iframeContainer {
+  contain: content;
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+}
+
+.iframeContainer :global(.readium-navigator-iframe) {
+  width: 100%;
+  height: 100%;
+  border-width: 0;
+}
+
+/* FXL: Loading spinner for resources */
+@keyframes loading {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.iframeContainer :global(div:has(> .readium-navigator-iframe.blank))::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -30px;
+  margin-left: -30px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50px;
+  border: 5px solid grey;
+  border-top-color: black;
+  animation: loading 2s linear infinite;
+}
+
+/* Utils */
+
+.srOnly {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

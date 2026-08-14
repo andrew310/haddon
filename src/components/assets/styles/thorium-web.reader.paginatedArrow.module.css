@@ -1,0 +1,82 @@
+.container {
+  position: absolute;
+  z-index: 2;
+}
+
+.leftContainer {
+  top: 50vh;
+  top: 50dvh;
+  transform: translateY(-50%);
+  left: 0;
+}
+
+.leftContainer button {
+  margin-left: var(--th-arrow-offset, 0);
+}
+
+.rightContainer {
+  top: 50vh;
+  top: 50dvh;
+  transform: translateY(-50%);
+  right: 0;
+}
+
+.rightContainer button {
+  margin-right: var(--th-arrow-offset, 0);
+}
+
+.container button {
+  width: var(--th-arrow-size, 40px);
+  /* height: var(--th-arrow-size, 40px); */
+  height: 40vh;
+  height: 40dvh;
+  border-radius: var(--th-layout-radius);
+  pointer-events: auto;
+  box-sizing: border-box;
+  padding: 5px;
+
+  background-color: var(--th-theme-background);
+  border: 1px solid var(--th-theme-text);
+}
+
+.container .occupiesSpace {
+  background-color: transparent;
+  border: none;
+}
+
+.container button[data-disabled] {
+  pointer-events: none;
+}
+
+.container button[data-hovered] {
+  opacity: 1;
+  transition: all 200ms;
+}
+
+.container .visuallyHidden {
+  opacity: 0;
+}
+
+.container button[data-focused] {
+  outline: 2px solid var(--th-theme-focus);
+  opacity: 1;
+}
+
+.container button[data-disabled] {
+  opacity: 0;
+}
+
+/* Exclude taps as they will eventually apply hover state */
+@media (hover: hover) and (pointer: fine) {
+  .container button:not([data-disabled])[data-hovered] {
+    opacity: 1;
+    transition: all 200ms;
+  }
+}
+
+.container button svg {
+  fill: var(--th-theme-text);
+  stroke: var(--th-theme-text);
+  width: 100%;
+  height: 100%;
+}
