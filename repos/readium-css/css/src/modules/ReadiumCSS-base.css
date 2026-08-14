@@ -1,0 +1,213 @@
+/* Readium CSS
+   Base module
+
+   A minimal stylesheet for all ebooks
+
+   Repo: https://github.com/readium/css */
+
+/* Define viewport, HTML5-style */
+@-ms-viewport {
+  width: device-width;
+}
+
+@viewport {
+  width: device-width;
+  zoom: 1;
+}
+
+:root {
+  /* Default font-stacks */
+  @import-json "../../vars/fontStacks.json";
+
+  /* i18n data (language-specific font stacks and line-height compensations) */
+  @import-json "../../vars/i18n.json";
+
+  /* Config */
+  --RS__baseFontFamily: var(--RS__latin-baseFontFamily);
+
+  /* For square-ish fonts (CJK, Indic, etc.), we must apply some compensation in leading. Default is 1 i.e. no compensation */
+  --RS__lineHeightCompensation: var(--RS__latin-lineHeightCompensation);
+  --RS__baseLineHeight: calc(1.5 * var(--RS__lineHeightCompensation));
+
+  /* Default colors (previously implemented as day mode) */
+  @import-json "../../vars/colors.json";
+
+  background-color: var(--RS__backgroundColor) !important;
+  color: var(--RS__textColor) !important;
+}
+
+/* Note: We’re not defining colors of links cos’ the selector specificity with :link and :visited could override publishers’ styles */
+
+/* Note: Though `::selection` was present in drafts of CSS Selectors Level 3, it was removed during the Candidate Recommendation phase because its behavior was under-specified (especially with nested elements) and interoperability wasn’t achieved. Source: https://developer.mozilla.org/en-US/docs/Web/CSS/::selection */
+::-moz-selection {
+  background-color: var(--RS__selectionBackgroundColor);
+  color: var(--RS__selectionTextColor);
+}
+
+::selection {
+  background-color: var(--RS__selectionBackgroundColor);
+  color: var(--RS__selectionTextColor);
+}
+
+/* Set default font for the html doc, so that it can be overridden by the authors’s stylesheet */
+html {
+  font-family: var(--RS__baseFontFamily);
+  /* Fallback line-height */
+  line-height: 1.6; /* Fits a little bit better for all languages than 1.5 */
+  line-height: var(--RS__baseLineHeight);
+  text-rendering: optimizeLegibility;
+}
+
+/* 1.5 being too loose with larger font-sizes, we reset headings to normal (which value is 1.125–1.375 for our font-stacks) */
+h1, h2, h3 {
+  line-height: normal;
+}
+
+:lang(ja),
+:lang(zh),
+:lang(ko) {
+  word-wrap: break-word;
+  -webkit-line-break: strict;
+  -epub-line-break: strict;
+  line-break: strict;
+}
+
+/* Set default font for Math */
+
+math {
+  font-family: "Latin Modern Math", "STIX Two Math", "XITS Math", "STIX Math", "Libertinus Math", "TeX Gyre Termes Math", "TeX Gyre Bonum Math", "TeX Gyre Schola", "DejaVu Math TeX Gyre", "TeX Gyre Pagella Math", "Asana Math", "Cambria Math", "Lucida Bright Math", "Minion Math", STIXGeneral, STIXSizeOneSym, Symbol, "Times New Roman", serif;
+}
+
+/* Language Overrides
+   That will only work if either html or body have a (xml:)lang attribute, not for inline overrides */
+
+:lang(am) {
+  --RS__baseFontFamily: var(--RS__am-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__am-lineHeightCompensation);
+}
+
+:lang(ar) {
+  --RS__baseFontFamily: var(--RS__ar-baseFontFamily);
+}
+
+:lang(bn) {
+  --RS__baseFontFamily: var(--RS__bn-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__bn-lineHeightCompensation);
+}
+
+:lang(bo) {
+  --RS__baseFontFamily: var(--RS__bo-baseFontFamily);
+}
+
+:lang(chr) {
+  --RS__baseFontFamily: var(--RS__chr-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__chr-lineHeightCompensation);
+}
+
+:lang(fa) {
+  --RS__baseFontFamily: var(--RS__fa-baseFontFamily);
+}
+
+:lang(gu) {
+  --RS__baseFontFamily: var(--RS__gu-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__gu-lineHeightCompensation);
+}
+
+:lang(he) {
+  --RS__baseFontFamily: var(--RS__he-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__he-lineHeightCompensation);
+}
+
+:lang(hi) {
+  --RS__baseFontFamily: var(--RS__hi-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__hi-lineHeightCompensation);
+}
+
+:lang(hy) {
+  --RS__baseFontFamily: var(--RS__hy-baseFontFamily);
+}
+
+:lang(iu) {
+  --RS__baseFontFamily: var(--RS__iu-baseFontFamily);
+}
+
+/* See  also extra variables for Japanese font-stacks in vars folder as we may want to reuse them for user settings + default */
+/* This setting uses the BIZ UD font for serif and the Yu font for sans serif on Windows. Note: When using the BIZ UD font for vertical writing display, if you set half-width (ASCII) characters to stand upright with `text-orientation: upright`, the width of these characters is narrow. By specifying `font-variant-east-asian: full-width;` at the same time, you can display the characters with the width of one full-width character. */
+:lang(ja) {
+  --RS__baseFontFamily: var(--RS__ja-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__ja-lineHeightCompensation);
+}
+
+:lang(km) {
+  --RS__baseFontFamily: var(--RS__km-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__km-lineHeightCompensation);
+}
+
+:lang(kn) {
+  --RS__baseFontFamily: var(--RS__kn-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__kn-lineHeightCompensation);
+}
+
+:lang(ko) {
+  --RS__baseFontFamily: var(--RS__ko-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__ko-lineHeightCompensation);
+}
+
+:lang(lo) {
+  --RS__baseFontFamily: var(--RS__lo-baseFontFamily);
+}
+
+:lang(ml) {
+  --RS__baseFontFamily: var(--RS__ml-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__ml-lineHeightCompensation);
+}
+
+:lang(or) {
+  --RS__baseFontFamily: var(--RS__or-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__or-lineHeightCompensation);
+}
+
+:lang(pa) {
+  --RS__baseFontFamily: var(--RS__pa-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__pa-lineHeightCompensation);
+}
+
+:lang(si) {
+  --RS__baseFontFamily: var(--RS__si-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__si-lineHeightCompensation);
+}
+
+:lang(ta) {
+  --RS__baseFontFamily: var(--RS__ta-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__ta-lineHeightCompensation);
+}
+
+:lang(te) {
+  --RS__baseFontFamily: var(--RS__te-baseFontFamily);
+}
+
+:lang(th) {
+  --RS__baseFontFamily: var(--RS__th-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__th-lineHeightCompensation);
+}
+
+/* The following will also work for zh-Hans */
+:lang(zh) {
+  --RS__baseFontFamily: var(--RS__zh-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__zh-lineHeightCompensation);
+}
+
+:lang(zh-Hant) {
+  --RS__baseFontFamily: var(--RS__zh-Hant-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__zh-Hant-lineHeightCompensation);
+}
+
+:lang(zh-TW) {
+  --RS__baseFontFamily: var(--RS__zh-TW-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__zh-TW-lineHeightCompensation);
+}
+
+:lang(zh-HK) {
+  --RS__baseFontFamily: var(--RS__zh-HK-baseFontFamily);
+  --RS__lineHeightCompensation: var(--RS__zh-HK-lineHeightCompensation);
+}

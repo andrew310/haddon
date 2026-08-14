@@ -1,0 +1,33 @@
+/* Readium CSS
+   Columns number pref
+
+   A submodule managing columns number for user settings
+   Part of “Chrome Advanced” class – no flag required.
+
+   Repo: https://github.com/readium/css */
+
+/* Number of columns */
+
+:root[style*="--USER__colCount"] {
+  -webkit-column-count: var(--USER__colCount);
+  -moz-column-count: var(--USER__colCount);
+  column-count: var(--USER__colCount);
+
+  --RS__colWidth: auto;
+}
+
+/* If zero column, protect against it */
+:root[style*="--USER__colCount: 0"],
+:root[style*="--USER__colCount:0"] {
+  -webkit-column-count: 1;
+  -moz-column-count: 1;
+  column-count: 1;
+}
+
+/* If one column, make sure we reset colWidth for Safari. There is no colNumber setting in vertical writing so we don’t need to address vw/vh */
+:root[style*="--USER__colCount: 0"],
+:root[style*="--USER__colCount:0"],
+:root[style*="--USER__colCount: 1"],
+:root[style*="--USER__colCount:1"] {
+  --RS__colWidth: 100vw;
+}

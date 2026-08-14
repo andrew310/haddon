@@ -1,0 +1,40 @@
+/* Readium CSS
+   A11y font pref
+
+   A submodule managing a11y text normalization for user settings
+   Part of “User Overrides” class – no flag required.
+
+   Repo: https://github.com/readium/css */
+
+/* Maybe users want a setting to normalize any font offered so there is a “a11y Normalize” flag for it */
+
+:root:--a11y-normalize {
+  font-weight: normal !important;
+  font-style: normal !important;
+}
+
+/* Targeting everything except code. Note that Open Dyslexic has a monospaced font for code */
+:root:--a11y-normalize body *:not(code):not(var):not(kbd):not(samp) {
+  font-family: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+}
+
+/* Normalizing text-decoration */
+:root:--a11y-normalize body *:not(a) {
+  text-decoration: none !important;
+}
+
+/* Normalizing font-variant */
+:root:--a11y-normalize body * {
+  font-variant-caps: normal !important;
+  font-variant-position: normal !important;
+  font-variant-numeric: normal !important;
+}
+
+/* Normalizing sup and sub */
+:root:--a11y-normalize sup,
+:root:--a11y-normalize sub {
+  font-size: 1rem !important;
+  vertical-align: baseline !important;
+}
