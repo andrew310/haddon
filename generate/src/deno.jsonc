@@ -1,0 +1,49 @@
+{
+    "description": "Generation of index and resolutions' files for EPUB tests and test results.",
+    // Version 1.2.0 adds the extra "tested-by" field to the test results
+    "version": "1.2.0.",
+    "compilerOptions": {
+        "lib": ["dom", "dom.iterable", "dom.asynciterable", "esnext", "deno.ns"]
+    },
+    "fmt": {
+        "useTabs": true,
+        "lineWidth": 180,
+        "indentWidth": 4,
+        "proseWrap": "preserve"
+    },
+    "imports": {
+        "jszip"         : "npm:jszip@^3.10.1",
+        "xml2js"        : "npm:xml2js@^0.6.2",
+        "path"          : "jsr:@std/path",
+        "jsdom"         : "npm:jsdom@^27.2.0",
+        "js-beautify"   : "npm:js-beautify@^1.15.4",
+        "commander"     : "npm:commander@^13.1.0",
+        "xml-formatter" : "npm:xml-formatter@^3.6.7"
+    },
+    "tasks": {
+        "generate": {
+            "description": "This is the command ran via a github action: run all the report generation. Deprecated tests are ignored.",
+            "command": "deno run -A create_report.ts"
+        },
+        "generate-full": {
+            "description": "This is the command ran via a github action: run all the report generation. Deprecated tests are included.",
+            "command": "deno run -A create_report.ts -f"
+        },
+        "debug-generate": {
+            "description": "Run the generation script, but on the 'debug/tests' folder; saves running the script on the full test suite. Deprecated tests are ignored",
+            "command": "deno run -A create_report.ts -d"
+        },
+        "debug-generate-full": {
+            "description": "Run the generation script, but on the 'debug/tests' folder; saves running the script on the full test suite. Deprecated tests are included.",
+            "command": "deno run -A create_report.ts -df"
+        },
+        "manage": {
+            "description": "This is the command ran via a github action: create all the epub files.",
+            "command": "deno run -A manage_tests.ts"
+        },
+        "debug-manage": {
+            "description": "Create all the epub files, but on the 'debug/tests' folder; saves running the script on the full test suite.",
+            "command": "deno run -A manage_tests.ts -d"
+        }
+    }
+}

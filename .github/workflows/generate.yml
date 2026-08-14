@@ -1,0 +1,50 @@
+# Relies on the standard GitHub action setup to deploy to GitHub Pages
+# The really specific details are in the steps that generates the index files
+# (and the deployment of deno as an underling tool).
+name: Generate epub files and test reports before publishing on GitHub Pages
+on:
+  push:
+    branches: [main]
+    paths: ["reports/**", "tests/**", "generate/src/**", "index.html", "results.html", "contributing.html", "contributing.md", "generate/config.json"]
+
+  # Allows workflow to be triggered manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout/@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Generate the index files
+        # Details depend on where the script is located
+        run: |
+          (cd generate/src; deno run -A create_report.ts; deno run -A manage_tests.ts ; rm deno.lock)
+      - name: Setup Github Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: '.'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
