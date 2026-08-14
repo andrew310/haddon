@@ -1,0 +1,13 @@
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class IC(BasicNewsRecipe):
+    title = 'il Cambiamento'
+    oldest_article = 12
+    max_articles_per_feed = 50
+    language = 'it'
+    __author__ = 'ghib9'
+    auto_cleanup = True
+    use_embedded_content = False
+
+    feeds = [('il Cambiamento', 'http://www.ilcambiamento.it/rss.xml')]

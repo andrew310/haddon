@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+__license__ = 'GPL v3'
+__copyright__ = '2010, Francisco Javier Nieto <frjanibo at gmail.com>'
+'''
+www.hoy.es
+'''
+
+from calibre.ebooks.BeautifulSoup import Tag
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+def new_tag(soup, name, attrs=()):
+    impl = getattr(soup, 'new_tag', None)
+    if impl is not None:
+        return impl(name, attrs=dict(attrs))
+    return Tag(soup, name, attrs=attrs or None)
+
+
+class Hoy(BasicNewsRecipe):
+    title = 'HOY'
+    __author__ = 'Fco Javier Nieto'
+    description = 'Noticias desde Extremadura'
+    publisher = 'HOY'
+    category = 'news, politics, Spain, Extremadura'
+    oldest_article = 2
+    max_articles_per_feed = 100
+    no_stylesheets = True
+    use_embedded_content = False
+    delay = 1
+    encoding = 'cp1252'
+    language = 'es'
+
+    feeds = [
+        ('Portada', 'http://www.hoy.es/portada.xml'),
+        ('Regional', 'http://www.hoy.es/rss/feeds/regional.xml'),
+        ('Prov de Badajoz', 'http://www.hoy.es/rss/feeds/prov_badajoz.xml'),
+        ('Prov de Caceres', 'http://www.hoy.es/rss/feeds/prov_caceres.xml'),
+        ('Badajoz', 'http://www.hoy.es/rss/feeds/badajoz.xml'),
+        ('Caceres', 'http://www.hoy.es/rss/feeds/caceres.xml'),
+        ('Merida', 'http://www.hoy.es/rss/feeds/merida.xml'),
+        ('Opinion', 'http://www.hoy.es/rss/feeds/opinion.xml'),
+        ('Nacional', 'http://www.hoy.es/rss/feeds/nacional.xml'),
+        ('Internacional', 'http://www.hoy.es/rss/feeds/internacional.xml'),
+        ('Economia', 'http://www.hoy.es/rss/feeds/economia.xml'),
+        ('Deportes', 'http://www.hoy.es/rss/feeds/deportes.xml'),
+        ('Sociedad', 'http://www.hoy.es/rss/feeds/sociedad.xml'),
+        ('Cultura', 'http://www.hoy.es/rss/feeds/cultura.xml'),
+        ('Television', 'http://www.hoy.es/rss/feeds/television.xml'),
+        ('contraportada', 'http://www.hoy.es/rss/feeds/contraportada.xml'),
+    ]
+
+    keep_only_tags = [
+        dict(name='h1', attrs={'class': ['headline']}),
+        dict(name='h2', attrs={'class': ['subhead']}),
+        dict(name='div', attrs={'class': ['text']}),
+    ]
+
+    remove_tags = [dict(name=['object', 'link', 'script']), dict(name='div', attrs={'class': ['colC_articulo', 'peu']})]
+
+    remove_tags_after = [dict(name='div', attrs={'class': 'text'})]
+
+    extra_css = '.headline {font: sans-serif 2em;}\n.subhead,h2{font: sans-serif 1.5em\n'
+
+    def preprocess_html(self, soup):
+        soup.html['dir'] = self.direction
+        mcharset = new_tag(soup, 'meta', [('http-equiv', 'Content-Type'), ('content', 'text/html; charset=utf-8')])
+        soup.head.insert(0, mcharset)
+        for item in soup.findAll(style=True):
+            del item['style']
+        return soup

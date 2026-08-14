@@ -1,0 +1,79 @@
+# vim:fileencoding=utf-8
+# License: GPL v3 Copyright: 2020, Kovid Goyal <kovid at kovidgoyal.net>
+from __python__ import bound_methods, hash_literals
+
+import traceback
+
+import initialize  # noqa: unused-import
+import read_book.test_cfi  # noqa: unused-import
+import test_annotations  # noqa: unused-import
+import test_date  # noqa: unused-import
+import test_item_list  # noqa: unused-import
+import test_library_data  # noqa: unused-import
+import test_local_books  # noqa: unused-import
+import test_nav_list  # noqa: unused-import
+import test_saved_virtual_libraries  # noqa: unused-import
+import test_sidebar  # noqa: unused-import
+import test_theme  # noqa: unused-import
+import test_utils  # noqa: unused-import
+import test_viewer_appearance  # noqa: unused-import
+from testing import registered_tests, reset_dom
+
+
+def get_matching_tests_for_name(name):
+    ans = []
+    for k in Object.keys(registered_tests):
+        q = k.split('.')[-1]
+        if not name or q is name:
+            ans.append(registered_tests[k])
+    return ans
+
+
+def get_traceback(e):
+    lines = traceback.format_exception()
+    last_line = lines[-1]
+    final_lines = []
+    pat = /at assert_[0-9a-zA-Z_]+ \(/
+    for line in lines[:-1]:
+        if pat.test(line):
+            break
+        final_lines.push(line)
+    final_lines.push(last_line)
+    final_lines.push(e.toString())
+    return final_lines.join('')
+
+
+def run_tests(tests):
+    failed_tests = []
+    for f in tests:
+        reset_dom()
+        st = window.performance.now()
+        try:
+            f()
+            time = window.performance.now() - st
+        except Exception as e:
+            tb = get_traceback(e)
+            failed_tests.append((f.test_name, tb))
+            print(f'{f.test_name} ... FAIL')
+        else:
+            print(f'{f.test_name} ... ok [{time:.1f} ms]')
+    return failed_tests
+
+
+def main():
+    tests = get_matching_tests_for_name()
+    st = window.performance.now()
+    failed_tests = run_tests(tests)
+    time = window.performance.now() - st
+    if failed_tests.length:
+        for ft in failed_tests:
+            console.error(f'Failed {ft[0]} with traceback:')
+            console.error(ft[1])
+        console.error(f'{failed_tests.length} out of {tests.length} failed in {time:.1f} ms')
+    else:
+        print(f'Ran {tests.length} tests in {time:.1f} ms')
+    return 1 if failed_tests.length else 0
+
+
+window.main = main
+document.title = 'initialized'

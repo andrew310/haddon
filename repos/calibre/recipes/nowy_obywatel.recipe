@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+__license__ = 'GPL v3'
+__copyright__ = 'Łukasz Grąbczewski 2013'
+__version__ = '1.0'
+
+'''
+nowyobywatel.pl
+'''
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class nowyobywatel(BasicNewsRecipe):
+    __author__ = 'Łukasz Grączewski'
+    title = 'Nowy Obywatel'
+    description = 'Pismo na rzecz sprawiedliwości społecznej'
+    language = 'pl'
+    publisher = 'Stowarzyszenie „Obywatele Obywatelom”'
+    publication_type = 'magazine'
+    masthead_url = 'http://lewicowo.pl/wp-content/uploads/2011/11/nowy-obywatel1.png'
+    no_stylesheets = True
+    remove_javascript = True
+    use_embedded_content = True
+    remove_empty_feeds = True
+
+    oldest_article = 32  # monthly +1
+    max_articles_per_feed = 100
+    simultaneous_downloads = 20
+
+    feeds = [
+        ('Aktualności', 'http://nowyobywatel.pl/category/aktualnosci/feed/'),
+        ('Opinie', 'http://nowyobywatel.pl/category/opinie/feed/'),
+        ('Nasze rozmowy', 'http://nowyobywatel.pl/category/nasze-rozmowy/feed/'),
+        ('Inspiracje', 'http://nowyobywatel.pl/category/inspiracje/feed/'),
+    ]
+
+    remove_tags = []
+    remove_tags.append(dict(attrs={'class': 'post-date'}))
+    remove_tags.append(dict(attrs={'class': 'printfriendly'}))
+    remove_tags.append(dict(attrs={'class': 'social4i'}))

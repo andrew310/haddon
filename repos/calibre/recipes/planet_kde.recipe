@@ -1,0 +1,11 @@
+from calibre.web.feeds.news import AutomaticNewsRecipe
+
+
+class BasicUserRecipe1300864518(AutomaticNewsRecipe):
+    title = 'KDE News'
+    language = 'en'
+    __author__ = 'Riccardo Iaconelli'
+    oldest_article = 10
+    max_articles_per_feed = 100
+
+    feeds = [('Planet KDE', 'http://planetkde.org/rss20.xml'), ('Got the Dot?', 'http://dot.kde.org/rss.xml')]

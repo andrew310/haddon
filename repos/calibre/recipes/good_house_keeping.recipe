@@ -1,0 +1,38 @@
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class AdvancedUserRecipe1305547242(BasicNewsRecipe):
+    title = 'Good House Keeping'
+    language = 'en'
+    __author__ = 'Anonymous'
+    oldest_article = 7
+    max_articles_per_feed = 100
+    no_stylesheets = True
+    use_embedded_content = False
+    remove_javascript = True
+
+    def print_version(self, url):
+        if '/tips-for-making-desserts?' in url:
+            return None
+        segments = url.split('/')
+        segments[-1] = segments[-1].split('?')[0]
+        segments[-1] += '?page=all'
+        printURL = '/'.join(segments[0:3]) + '/print-this/' + segments[-1]
+        return printURL
+
+    def preprocess_html(self, soup):
+        for alink in soup.findAll('a'):
+            if alink.string is not None:
+                tstr = alink.string
+                alink.replaceWith(tstr)
+        return soup
+
+    feeds = [
+        ('Food and Recipes', 'http://www.goodhousekeeping.com/rss/recipes/'),
+        ('Home and Organizing', 'http://www.goodhousekeeping.com/rss/home/'),
+        ('Diet and Health', 'http://www.goodhousekeeping.com/rss/health/'),
+        ('Beauty and Anti-Aging', 'http://www.goodhousekeeping.com/rss/beauty/'),
+        ('Family and Relationships', 'http://www.goodhousekeeping.com/rss/family/'),
+        ('Holidays', 'http://www.goodhousekeeping.com/rss/holidays/'),
+        ('In the Test Kitchen', 'http://www.goodhousekeeping.com/rss/test-kitchen-blog/'),
+    ]

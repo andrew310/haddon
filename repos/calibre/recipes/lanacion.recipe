@@ -1,0 +1,76 @@
+__copyright__ = '2008-2015, Darko Miletic <darko.miletic at gmail.com>'
+'''
+lanacion.com.ar
+'''
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class Lanacion(BasicNewsRecipe):
+    title = 'La Nacion'
+    __author__ = 'Darko Miletic'
+    description = 'lanacion.com - Informacion actualizada las 24 horas, con noticias de Argentina y del mundo'
+    publisher = 'La Nacion S.A.'
+    category = 'news, politics, Argentina'
+    oldest_article = 1
+    max_articles_per_feed = 100
+    use_embedded_content = False
+    auto_cleanup = False
+    no_stylesheets = True
+    encoding = 'utf8'
+    language = 'es_AR'
+    publication_type = 'newspaper'
+    remove_empty_feeds = True
+    masthead_url = 'http://www.lanacion.com.ar/_ui/desktop/imgs/layout/logos/ln-home.gif'
+    extra_css = '''
+                                h1{font-family: TheSans,Arial,sans-serif}
+                                body{font-family: Arial,sans-serif}
+                                img{display: block}
+                                .firma,.fecha{font-size: small}
+                                .epigrafe-columna{font-size: x-small}
+                            '''
+
+    conversion_options = {'comment': description, 'tags': category, 'publisher': publisher, 'language': language}
+
+    remove_tags = [
+        dict(name=['iframe', 'embed', 'object', 'meta', 'link', 'button']),
+        dict(attrs={'id': ['herramientas-sociales', 'comunidad', 'ranking-nota', 'footer']}),
+        dict(attrs={'class': ['mas-sobre-tema', 'cinturon-notas floatFix', 'cinturon-notas']}),  # noqa: E501
+    ]
+
+    remove_tags_before = dict(attrs={'id': 'nota'})
+    remove_tags_after = dict(attrs={'class': 'en-esta-nota'})
+
+    feeds = [
+        ('Politica', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=30'),
+        ('Deportes', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=131'),
+        ('Economia', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=272'),
+        ('Sociedad', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=7773'),
+        ('Seguridad', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=7775'),
+        ('Buenos Aires', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=7774'),
+        ('Opinion', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=28'),
+        ('Espectaculos', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=120'),
+        ('El Mundo', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=7'),
+        ('Revista', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=494'),
+        ('Enfoques', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=421'),
+        ('Comercio Exterior', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=347'),
+        ('Tecnologia', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=432'),
+        ('Turismo', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=504'),
+        ('Al volante', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=371'),
+        ('El Campo', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=337'),
+        ('Moda y Belleza', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=1312'),
+        ('Inmuebles Comerciales', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=1363'),
+        ('Countries', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=1348'),
+        ('Comunidad', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=1344'),
+        ('adnCultura', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=6734'),
+        ('The WSJ Americas', 'http://contenidos.lanacion.com.ar/herramientas/rss/categoria_id=6373'),
+    ]
+
+    def get_cover_url(self):
+        soup = self.index_to_soup('http://www.lanacion.com.ar/edicion-impresa')
+        atap = soup.find(attrs={'class': 'tapa'})
+        if atap:
+            li = atap.find('img')
+            if li:
+                return li['src']
+        return None

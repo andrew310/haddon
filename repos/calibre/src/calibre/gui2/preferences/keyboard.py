@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+# License: GPLv3 Copyright: 2010, Kovid Goyal <kovid@kovidgoyal.net>
+
+from qt.core import QVBoxLayout
+
+from calibre.gui2.keyboard import ShortcutConfig
+from calibre.gui2.preferences import ConfigWidgetBase, test_widget
+
+
+class ConfigWidget(ConfigWidgetBase):
+    def genesis(self, gui):
+        self.gui = gui
+        self.conf_widget = ShortcutConfig(self)
+        self.conf_widget.changed_signal.connect(self.changed_signal)
+        self._layout = l = QVBoxLayout()
+        l.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(l)
+        l.addWidget(self.conf_widget)
+
+    def initialize(self):
+        ConfigWidgetBase.initialize(self)
+        self.conf_widget.initialize(self.gui.keyboard)
+
+    def restore_defaults(self, *args):
+        ConfigWidgetBase.restore_defaults(self)
+        self.conf_widget.restore_defaults()
+
+    def commit(self, *args):
+        self.conf_widget.commit()
+        return ConfigWidgetBase.commit(self)
+
+    def refresh_gui(self, gui):
+        gui.keyboard.finalize()
+
+    def highlight_group(self, group_name):
+        self.conf_widget.highlight_group(group_name)
+
+
+if __name__ == '__main__':
+    from calibre.gui2 import Application
+
+    app = Application([])
+    test_widget('Advanced', 'Keyboard')

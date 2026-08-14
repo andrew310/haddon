@@ -1,0 +1,32 @@
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class AdvancedUserRecipe1295081935(BasicNewsRecipe):
+    title = 'Mail & Guardian ZA News'
+    __author__ = '77ja65'
+    language = 'en_ZA'
+    oldest_article = 7
+    max_articles_per_feed = 30
+    no_stylesheets = True
+    masthead_url = 'http://c1608832.cdn.cloudfiles.rackspacecloud.com/mg_logo.gif'
+    remove_tags_after = [dict(id='content')]
+
+    feeds = [
+        ('National News', 'http://www.mg.co.za/rss/national'),
+        ('Top Stories', 'http://www.mg.co.za/rss'),
+        ('Africa News', 'http://www.mg.co.za/rss/africa'),
+        ('Sport', 'http://www.mg.co.za/rss/sport'),
+        ('Business', 'http://www.mg.co.za/rss/business'),
+        ('And In Other News', 'http://www.mg.co.za/rss/and-in-other-news'),
+        ('World News', 'http://www.mg.co.za/rss/world'),
+    ]
+
+    def print_version(self, url):
+        return url.replace('http://www.mg.co.za/article/', 'http://www.mg.co.za/printformat/single/')
+
+    extra_css = '''
+                     h1{font-family:Arial,Helvetica,sans-serif; font-
+ weight:bold;font-size:large;}
+                     h2{font-family:Arial,Helvetica,sans-serif; font-
+ weight:normal;font-size:small;}
+                 '''

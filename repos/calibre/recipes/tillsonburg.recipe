@@ -1,0 +1,27 @@
+from calibre.web.feeds.news import BasicNewsRecipe
+
+'''
+Tillsonburg/Norfolk County newspapers Calibre Recipe
+'''
+
+
+class TillsonburgNorfolkCounty(BasicNewsRecipe):
+    title = 'Tillsonburg/Norfolk County'
+    oldest_article = 7
+    max_articles_per_feed = 100
+    auto_cleanup = True
+    __author__ = 'Eric Coolman'
+    publisher = 'canoe.ca'
+    description = 'Norfolk County and Tillsonburg, Ontario Canada Newspapers'
+    category = 'News, Ontario, Canada'
+    remove_javascript = True
+    use_embedded_content = False
+    no_stylesheets = True
+    language = 'en_CA'
+    encoding = 'utf-8'
+
+    feeds = [
+        ('Simcoe Reformer', 'http://www.simcoereformer.ca/rss/'),
+        ('Delhi News-Record', 'http://www.delhinewsrecord.com/rss/'),
+        ('Tilsonburg News', 'http://www.tillsonburgnews.com/rss/'),
+    ]

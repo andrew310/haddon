@@ -1,0 +1,67 @@
+# vim:fileencoding=utf-8
+from __future__ import unicode_literals
+
+##
+# Written:      November 2014 (new coding)
+# Version:      1.0
+# Last update:  2014-011-11
+##
+
+__license__ = 'GPL v3'
+__copyright__ = ''
+'''
+Fetch RSS-Feeds Münchner Merkur.de
+'''
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class AdvancedUserRecipe1414926536(BasicNewsRecipe):
+    title = 'Dachauer Nachrichten'
+    __author__ = 'Bernd Boehm'
+    description = 'German  online portal of Münchner Merkur'
+    publisher = 'Münchener Zeitungs-Verlag GmbH & Co.KG '
+    category = 'daily local paper, Germany'
+    language = 'de'
+    oldest_article = 1
+    max_articles_per_feed = 100
+    auto_cleanup = True
+
+    feeds = [
+        ('Schlagzeilen', 'http://www.merkur-online.de/aktuelles/schlagzeilen-des-tages/rssfeed.rdf'),
+        ('Politik', 'http://www.merkur-online.de/aktuelles/politik/rssfeed.rdf'),
+        ('Wirtschaft', 'http://www.merkur-online.de/aktuelles/wirtschaft/rssfeed.rdf'),
+        ('Welt', 'http://www.merkur-online.de/aktuelles/welt/rssfeed.rdf'),
+        ('Bayern', 'http://www.merkur-online.de/aktuelles/bayern/rssfeed.rdf'),
+        ('Regionen', 'http://www.merkur-online.de/lokales/regionen/rssfeed.rdf'),
+        ('Multimedia', 'http://www.merkur-online.de/aktuelles/computer-wissen/rssfeed.rdf'),
+        ('Kultur', 'http://www.merkur-online.de/aktuelles/kultur/rssfeed.rdf'),
+        ('Boulevard', 'http://www.merkur-online.de/aktuelles/boulevard/rssfeed.rdf'),
+        ('Landkreis Dachau', 'http://www.merkur-online.de/lokales/dachau/rssfeed.rdf'),
+        ('Lkr. Dachau', 'http://www.merkur-online.de/lokales/dachau/landkreis/rssfeed.rdf'),
+        ('Odelzhausen', 'http://www.merkur-online.de/lokales/dachau/odelzhausen/rssfeed.rdf'),
+        ('Altom\xfcnster', 'http://www.merkur-online.de/lokales/dachau/altomuenster/rssfeed.rdf'),
+        ('Markt Indersdorf', 'http://www.merkur-online.de/lokales/dachau/markt-indersdorf/rssfeed.rdf'),
+        ('Karlsfeld', 'http://www.merkur-online.de/lokales/dachau/karlsfeld/rssfeed.rdf'),
+        ('Dachau', 'http://www.merkur-online.de/lokales/dachau/dachau/rssfeed.rdf'),
+        ('Petershausen', 'http://www.merkur-online.de/lokales/dachau/petershausen/rssfeed.rdf'),
+        ('Haimhausen', 'http://www.merkur-online.de/lokales/dachau/haimhausen/rssfeed.rdf'),
+        ('Babys', 'http://www.merkur-online.de/lokales/dachau/babys/rssfeed.rdf'),
+        ('Sport', 'http://www.merkur-online.de/sport/rssfeed.rdf'),
+        ('FC-Bayern', 'http://www.merkur-online.de/sport/fc-bayern/rssfeed.rdf'),
+        ('TSV 1860', 'http://www.merkur-online.de/sport/tsv-1860/rssfeed.rdf'),
+        ('Fussball', 'http://www.merkur-online.de/sport/fussball/rssfeed.rdf'),
+        ('FCB Basketball', 'http://www.merkur-online.de/sport/fcb-basketball/rssfeed.rdf'),
+        ('Mehr Sport', 'http://www.merkur-online.de/sport/mehr-sport/rssfeed.rdf'),
+        ('Wintersport', 'http://www.merkur-online.de/sport/wintersport/rssfeed.rdf'),
+        ('Eishockey', 'http://www.merkur-online.de/sport/eishockey/rssfeed.rdf'),
+        ('Service', 'http://www.merkur-online.de/service/rssfeed.rdf'),
+        ('Auto', 'http://www.merkur-online.de/service/auto/rssfeed.rdf'),
+        ('Karriere', 'http://www.merkur-online.de/service/karriere/rssfeed.rdf'),
+        ('Wohnen', 'http://www.merkur-online.de/service/wohnen/rssfeed.rdf'),
+        ('Gesundheit', 'http://www.merkur-online.de/service/gesundheit/rssfeed.rdf'),
+        ('Specials', 'http://www.merkur-online.de/service/specials/rssfeed.rdf'),
+        ('Reise', 'http://www.merkur-online.de/freizeit/reise/rssfeed.rdf'),
+        ('Bayrischer Wald', 'http://www.merkur-online.de/freizeit/reise/bayerischer-wald/rssfeed.rdf'),
+        ('Freizeit', 'http://www.merkur-online.de/freizeit/rssfeed.rdf'),
+        ('Outdoor', 'http://www.merkur-online.de/freizeit/outdoor/rssfeed.rdf'),
+    ]

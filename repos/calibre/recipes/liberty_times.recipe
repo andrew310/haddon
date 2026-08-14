@@ -1,0 +1,42 @@
+# -*- coding: utf-8 -*-
+__license__ = 'GPL v3'
+# dug from http://www.mobileread.com/forums/showthread.php?p=1012294
+
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class AdvancedUserRecipe1277443634(BasicNewsRecipe):
+    title = '自由電子報'
+    oldest_article = 1
+    max_articles_per_feed = 100
+
+    feeds = [
+        ('即時', 'https://news.ltn.com.tw/rss/all.xml'),
+        ('政治', 'https://news.ltn.com.tw/rss/politics.xml'),
+        ('社會', 'https://news.ltn.com.tw/rss/society.xml'),
+        ('生活', 'https://news.ltn.com.tw/rss/life.xml'),
+        ('評論', 'https://news.ltn.com.tw/rss/opinion.xml'),
+        ('國際', 'https://news.ltn.com.tw/rss/world.xml'),
+        ('財經', 'https://news.ltn.com.tw/rss/business.xml'),
+        ('體育', 'https://news.ltn.com.tw/rss/sports.xml'),
+        ('娛樂', 'https://news.ltn.com.tw/rss/entertainment.xml'),
+        ('地方', 'https://news.ltn.com.tw/rss/local.xml'),
+        ('人物', 'https://news.ltn.com.tw/rss/people.xml'),
+        ('蒐奇', 'https://news.ltn.com.tw/rss/novelty.xml'),
+    ]
+
+    __author__ = 'einstuerzende, updated by Eddie Lau'
+    __version__ = '1.2'
+    language = 'zh'
+    publisher = 'Liberty Times Group'
+    description = 'Liberty Times (Taiwan)'
+    category = 'News, Chinese, Taiwan'
+    remove_javascript = True
+    use_embedded_content = False
+    no_stylesheets = True
+    encoding = 'utf-8'
+    conversion_options = {'linearize_tables': True}
+    masthead_url = 'https://cache.ltn.com.tw/images/rwd_ltnlogo.png'
+    cover_url = 'https://cache.ltn.com.tw/images/rwd_ltnlogo.png'
+    auto_cleanup = True

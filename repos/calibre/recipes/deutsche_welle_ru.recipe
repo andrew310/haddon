@@ -1,0 +1,61 @@
+from calibre.web.feeds.news import BasicNewsRecipe, classes
+
+
+class DeutscheWelle(BasicNewsRecipe):
+    title = 'Deutsche Welle \u043d\u0430 \u0440\u0443\u0441\u0441\u043a\u043e\u043c'
+    description = '\u0420\u0443\u0441\u0441\u043a\u0430\u044f \u0440\u0435\u0434\u0430\u043a\u0446\u0438\u044f Deutsche Welle: \u043d\u043e\u0432\u043e\u0441\u0442\u0438, \u0430\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430, \u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0438 \u0438 \u0440\u0435\u043f\u043e\u0440\u0442\u0430\u0436\u0438 \u0438\u0437 \u0413\u0435\u0440\u043c\u0430\u043d\u0438\u0438 \u0438 \u0415\u0432\u0440\u043e\u043f\u044b, \u043d\u0435\u043c\u0435\u0446\u043a\u0438\u0439 \u0438 \u0435\u0432\u0440\u043e\u043f\u0435\u0439\u0441\u043a\u0438\u0439 \u0432\u0437\u0433\u043b\u044f\u0434 \u043d\u0430 \u0441\u043e\u0431\u044b\u0442\u0438\u044f \u0432 \u0420\u043e\u0441\u0441\u0438\u0438 \u0438 \u043c\u0438\u0440\u0435,  \u043f\u0440\u0430\u043a\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0441\u043e\u0432\u0435\u0442\u044b \u0434\u043b\u044f \u0442\u0443\u0440\u0438\u0441\u0442\u043e\u0432 \u0438 \u0442\u0435\u0445, \u043a\u0442\u043e \u0436\u0435\u043b\u0430\u0435\u0442 \u0443\u0447\u0438\u0442\u044c\u0441\u044f \u0438\u043b\u0438 \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0432 \u0413\u0435\u0440\u043c\u0430\u043d\u0438\u0438 \u0438 \u0434\u0440\u0443\u0433\u0438\u0445 \u0441\u0442\u0440\u0430\u043d\u0430\u0445 \u0415\u0432\u0440\u043e\u0441\u043e\u044e\u0437\u0430.'  # noqa: E501
+    __author__ = 'bugmen00t, unkn0wn'
+    publication_type = 'newspaper'
+    oldest_article = 2
+    max_articles_per_feed = 100
+    language = 'ru'
+    # cover_url = 'https://www.dw.com/cssi/dwlogo-print.gif'
+
+    remove_javascript = True
+    no_stylesheets = True
+    remove_empty_feeds = True
+    ignore_duplicate_articles = {'title', 'url'}
+    remove_attributes = ['height', 'width', 'style']
+
+    recipe_specific_options = {
+        'days': {
+            'short': 'Oldest article to download from this news source. In days ',
+            'long': 'For example, 0.5, gives you articles from the past 12 hours',
+            'default': str(oldest_article),
+        }
+    }
+
+    def __init__(self, *args, **kwargs):
+        BasicNewsRecipe.__init__(self, *args, **kwargs)
+        d = self.recipe_specific_options.get('days')
+        if d and isinstance(d, str):
+            self.oldest_article = float(d)
+
+    def preprocess_html(self, soup):
+        for img in soup.findAll('img', srcset=True):
+            img['src'] = img['srcset'].split()[6]
+        return soup
+
+    keep_only_tags = [dict(name='article')]
+
+    remove_tags = [dict(name=['footer', 'source']), dict(attrs={'data-tracking-name': 'sharing-icons-inline'}), classes('kicker advertisement vjs-wrapper')]
+
+    feeds = [
+        ('\u0412\u0435\u0441\u044c \u0441\u0430\u0439\u0442', 'https://rss.dw.com/xml/rss-ru-all'),
+        ('\u041d\u043e\u0432\u043e\u0441\u0442\u0438', 'http://rss.dw.de/xml/rss-ru-news'),
+        ('\u041f\u043e\u043b\u0438\u0442\u0438\u043a\u0430 \u0438 \u043e\u0431\u0449\u0435\u0441\u0442\u0432\u043e', 'http://rss.dw.de/xml/rss-ru-pol'),
+        ('\u042d\u043a\u043e\u043d\u043e\u043c\u0438\u043a\u0430', 'http://rss.dw.de/xml/rss-ru-eco'),
+        ('\u0410\u0432\u0442\u043e\u043c\u043e\u0431\u0438\u043b\u044c', 'http://rss.dw.de/xml/rss-ru-auto'),
+        (
+            '\u041a\u0443\u043b\u044c\u0442\u0443\u0440\u0430 \u0438 \u0441\u0442\u0438\u043b\u044c \u0436\u0438\u0437\u043d\u0438',
+            'http://rss.dw.de/xml/rss-ru-cul',
+        ),
+        ('\u0420\u043e\u0441\u0441\u0438\u044f', 'http://rss.dw.de/xml/rss-ru-rus'),
+        ('\u0413\u0435\u0440\u043c\u0430\u043d\u0438\u044f', 'http://rss.dw.de/xml/rss-ru-ger'),
+        ('\u0415\u0432\u0440\u043e\u043f\u0430', 'http://rss.dw.de/xml/rss-ru-eu'),
+        ('\u0411\u0435\u043b\u0430\u0440\u0443\u0441\u044c', 'http://rss.dw.de/xml/rss-ru-bel'),
+        ('\u0423\u0447\u0435\u0431\u0430 \u0438 \u043a\u0430\u0440\u044c\u0435\u0440\u0430', 'http://rss.dw.de/xml/rss-ru-campus-karriere'),
+        ('\u0423\u0447\u0435\u0431\u0430 ', 'http://rss.dw.de/xml/rss-ru-campus'),
+        ('\u041a\u0430\u0440\u044c\u0435\u0440\u0430 ', 'http://rss.dw.de/xml/rss-ru-karriere'),
+        ('\u0422\u0443\u0440\u0438\u0441\u0442\u0443 \u043d\u0430 \u0437\u0430\u043c\u0435\u0442\u043a\u0443', 'http://rss.dw.de/xml/rss-ru-discover-ger'),
+    ]

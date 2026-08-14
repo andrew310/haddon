@@ -1,0 +1,338 @@
+#!/usr/bin/env python
+# vim:fileencoding=utf-8
+# License: GPLv3 Copyright: 2018, Kovid Goyal <kovid at kovidgoyal.net>
+
+import datetime
+import json
+import re
+from pprint import pprint
+
+from calibre import strftime
+from calibre.ebooks.BeautifulSoup import BeautifulSoup, Tag
+from calibre.utils.date import strptime
+from calibre.web.feeds.news import BasicNewsRecipe
+from polyglot.functools import lru_cache
+
+is_web_edition = True
+use_wayback_machine = False
+
+# This is an Apollo persisted query hash which you can get
+# from looking at the XHR requests made by: https://www.nytimes.com/section/todayspaper
+# or by https://www.nytimes.com/section/world
+persistedQuery = '1f99120a11e94dd62a9474f68ee1255537ee3cf7eac20a0377819edb2fa1fef7'
+
+# The sections to download when downloading the web edition, comment out
+# the section you are not interested in
+web_sections = [
+    'world',
+    'us',
+    'politics',
+    'nyregion',
+    'business',
+    'technology',
+    'sports',
+    'science',
+    'health',
+    'opinion',
+    'arts',
+    'books',
+    'movies',
+    'arts/music',
+    'arts/television',
+    'style',
+    'food',
+    'fashion',
+    'travel',
+    'education',
+    'multimedia',
+    'obituaries',
+    'magazine',
+]
+# web_sections = [ 'business' ]
+url_date_pat = re.compile(r'/(2\d\d\d)/(\d\d)/(\d\d)/')
+
+
+def date_from_url(url):
+    m = url_date_pat.search(url)
+    if m is not None:
+        return datetime.date(*map(int, m.groups()))
+
+
+def format_date(d):
+    try:
+        return strftime(' [%a, %d %b %Y]', d)
+    except Exception:
+        return strftime(' [%Y/%m/%d]', d)
+
+
+def classes(classes):
+    q = frozenset(classes.split(' '))
+    return dict(attrs={'class': lambda x: x and frozenset(x.split()).intersection(q)})
+
+
+def new_tag(soup, name, attrs=()):
+    impl = getattr(soup, 'new_tag', None)
+    if impl is not None:
+        return impl(name, attrs=dict(attrs))
+    return Tag(soup, name, attrs=attrs or None)
+
+
+def absolutize_href(href):
+    if not href.startswith('http'):
+        href = 'https://www.nytimes.com/' + href.lstrip('/')
+    return href
+
+
+@lru_cache(2)
+def parser_module():
+    from calibre.live import load_module
+
+    return load_module('calibre.web.site_parsers.nytimes')
+
+
+class NewYorkTimes(BasicNewsRecipe):
+    if is_web_edition:
+        title = 'The New York Times (Web)'
+        description = (
+            'New York Times (Web). You can edit the recipe to remove sections you are not interested in. '
+            'Use advanced menu to make changes to fetch Todays Paper'
+        )
+    else:
+        title = 'The New York Times'
+        description = 'New York Times. Todays Paper Use advanced menu to make changes to fetch Web Edition'
+    encoding = 'utf-8'
+    __author__ = 'Kovid Goyal'
+    language = 'en_US'
+    ignore_duplicate_articles = {'title', 'url'}
+    no_stylesheets = True
+    oldest_web_edition_article = 7  # days
+    browser_type = 'webengine'
+
+    extra_css = '''
+        .byl, .time { font-size:small; color:#202020; }
+        .cap { font-size:small; text-align:center; }
+        .cred { font-style:italic; font-size:small; }
+        em, blockquote { color: #202020; }
+        .sc { font-variant: small-caps; }
+        .lbl { font-size:small; color:#404040; }
+        img { display:block; margin:0 auto; }
+    '''
+
+    @property
+    def nyt_parser(self):
+        return parser_module()
+
+    def get_nyt_page(self, url, skip_wayback=False):
+        if use_wayback_machine and not skip_wayback:
+            from calibre import browser
+
+            return self.nyt_parser.download_url(url, browser())
+        return self.index_to_soup(url, raw=True)
+
+    def preprocess_raw_html(self, raw_html, url):
+        return self.nyt_parser.extract_html(self.index_to_soup(raw_html), url)
+
+    articles_are_obfuscated = use_wayback_machine
+
+    if use_wayback_machine:
+
+        def get_obfuscated_article(self, url):
+            from calibre.ptempfile import PersistentTemporaryFile
+
+            with PersistentTemporaryFile() as tf:
+                tf.write(self.get_nyt_page(url))
+            return tf.name
+
+    recipe_specific_options = {
+        'web': {
+            'short': 'Type in yes, if you want ' + ('Todays Paper' if is_web_edition else 'Web Edition'),
+            'default': 'Web Edition' if is_web_edition else 'Todays Paper',
+        },
+        'days': {
+            'short': 'Oldest article to download from this news source. In days ',
+            'long': 'For example, 1, gives you articles from the past 24 hours\n(Works only for Web_Edition)',
+            'default': str(oldest_web_edition_article),
+        },
+        'date': {
+            'short': 'The date of the edition to download (YYYY/MM/DD format)\nUsed to fetch past editions of NYT newspaper',
+            'long': 'For example, 2024/07/16',
+        },
+        'res': {
+            'short': ('For hi-res images, select a resolution from the following\noptions: popup, jumbo, mobileMasterAt3x, superJumbo'),
+            'long': (
+                'This is useful for non e-ink devices, and for a lower file size\nthan '
+                'the default, use mediumThreeByTwo440, mediumThreeByTwo225, articleInline.'
+            ),
+        },
+        'comp': {'short': 'Compress News Images?', 'long': 'enter yes', 'default': 'no'},
+    }
+
+    def __init__(self, *args, **kwargs):
+        BasicNewsRecipe.__init__(self, *args, **kwargs)
+        c = self.recipe_specific_options.get('comp')
+        d = self.recipe_specific_options.get('days')
+        w = self.recipe_specific_options.get('web')
+        self.is_web_edition = is_web_edition
+        if w and isinstance(w, str):
+            if w == 'yes':
+                self.is_web_edition = not is_web_edition
+        if d and isinstance(d, str):
+            self.oldest_web_edition_article = float(d)
+        if c and isinstance(c, str):
+            if c.lower() == 'yes':
+                self.compress_news_images = True
+
+    def todays_paper_url(self):
+        pdate = self.recipe_specific_options.get('date')
+        if pdate and isinstance(pdate, str):
+            return 'https://www.nytimes.com/issue/todayspaper/{}/todays-new-york-times'.format(pdate)
+        return 'https://www.nytimes.com/section/todayspaper'
+
+    def parse_todays_page(self):
+        url = self.todays_paper_url()
+        soup = self.index_to_soup(url)
+        return parse_todays_page(soup)
+
+    def parse_web_sections(self):
+        feeds = []
+        for slug in web_sections:
+            url = 'https://www.nytimes.com/section/' + slug
+            self.log('Download section index:', url)
+            soup = self.index_to_soup(url)
+            # with open('/t/raw.html', 'w') as f:
+            #     f.write(str(soup))
+            section_title, articles = parse_web_section(soup)
+            self.log('Section:', section_title)
+            if articles:
+                feeds.append((section_title, articles))
+                for a in articles:
+                    self.log('\t', a['title'], a['url'])
+            else:
+                self.log('  No articles found in section:', section_title)
+            if self.test and len(feeds) >= self.test[0]:
+                break
+        return feeds
+
+    def parse_index(self):
+        # return [('All articles', [
+        #     {'title': 'XXXXX', 'url': 'https://www.nytimes.com/2020/11/27/world/americas/coronavirus-migrants-venezuela.html'},
+        # ])]
+        date, feeds = self.parse_todays_page()
+        pdate = date.strftime('%Y/%m/%d')
+        self.cover_url = 'https://static01.nyt.com/images/{}/nytfrontpage/scan.jpg'.format(pdate)
+        self.timefmt = strftime(' [%d %b, %Y]', date)
+        if self.is_web_edition:
+            return self.parse_web_sections()
+        for s, articles in feeds:
+            self.log('Section:', s)
+            for a in articles:
+                self.log('\t', a['title'], a['url'])
+        return feeds
+
+    def get_browser(self, *args, **kwargs):
+        # kwargs['user_agent'] = 'Mozilla/5.0 (compatible; Google-InspectionTool/1.0)'
+        # kwargs['user_agent'] = 'Mozilla/5.0 (compatible; archive.org_bot; Wayback Machine Live Record; +http://archive.org/details/archive.org_bot)'
+        br = BasicNewsRecipe.get_browser(self, *args, **kwargs)
+        return br
+
+    def preprocess_html(self, soup):
+        w = self.recipe_specific_options.get('res')
+        if w and isinstance(w, str):
+            res = '-' + w
+            for img in soup.findAll('img', attrs={'src': True}):
+                if '-article' in img['src']:
+                    ext = img['src'].split('?')[0].split('.')[-1]
+                    img['src'] = img['src'].rsplit('-article', 1)[0] + res + '.' + ext
+        for c in soup.findAll('div', attrs={'class': 'cap'}):
+            for p in c.findAll(['p', 'div']):
+                p.name = 'span'
+        return soup
+
+    def get_article_url(self, article):
+        url = BasicNewsRecipe.get_article_url(self, article)
+        if not re.search(r'/video/|/athletic/|/card/', url):
+            return url
+        self.log('\tSkipping ', url)
+
+
+def preloaded_data(soup):
+    candidates = soup.find_all('script', string=lambda x: x and 'window.__preloadedData' in x)
+    script = candidates[0]
+    script = str(script)
+    raw = script[script.find('{') : script.rfind(';')].strip().rstrip(';')  # }
+    raw = parser_module().clean_js_json(raw)
+    # with open('/t/raw.json', 'w') as f:
+    #     f.write(raw)
+    return json.JSONDecoder(strict=False).raw_decode(raw)[0]['initialState']
+
+
+def asset_to_article(asset):
+    title = asset['headline']['default']
+    return {'title': title, 'url': asset['url'], 'description': asset['summary']}
+
+
+def parse_web_section(soup):
+    data = preloaded_data(soup)
+    article_map = {}
+    for k, v in data.items():
+        if v['__typename'] == 'Article':
+            article_map[k] = asset_to_article(v)
+    articles = []
+    for k, v in data['ROOT_QUERY'].items():
+        if k.startswith('workOrLocation'):
+            c = data[v['__ref']]
+            section_title = c['name']
+            for k, v in c['collectionsPage'].items():
+                if k.startswith('stream'):
+                    for k, v in v.items():
+                        if k.startswith('edges'):
+                            for q in v:
+                                r = q['node']['__ref']
+                                if r.startswith('Article:'):
+                                    articles.append(article_map[r])
+            if not articles:
+                for c in c['collectionsPage']['embeddedCollections']:
+                    for e in c['stream']['edges']:
+                        for k, v in e.items():
+                            if k.startswith('node'):
+                                articles.append(article_map[v['__ref']])
+    return section_title, articles
+
+
+def parse_todays_page(soup):
+    m = soup.find('meta', attrs={'name': 'nyt-collection:uri'})['content'].split('/')
+    pdate = strptime('{}/{}/{}'.format(*m[-4:-1]), '%Y/%m/%d', assume_utc=False, as_utc=False)
+    article_map = {}
+    data = preloaded_data(soup)
+    for k, v in data.items():
+        if v['__typename'] == 'Article':
+            article_map[k] = asset_to_article(v)
+    feeds = []
+    for k, v in data['ROOT_QUERY'].items():
+        if k.startswith('workOrLocation'):
+            for g in data[v['__ref']]['groupings']:
+                for c in g['containers']:
+                    articles = []
+                    for r in c['relations']:
+                        ref = r['asset']['__ref']
+                        if ref in article_map:
+                            articles.append(article_map[ref])
+                    if articles:
+                        feeds.append((c['label'], articles))
+    return pdate, feeds
+
+
+if __name__ == '__main__':
+    import sys
+
+    with open(sys.argv[-1]) as f:
+        html = f.read()
+    soup = BeautifulSoup(html)
+    if is_web_edition:
+        section_title, articles = parse_web_section(soup)
+        print(section_title)
+        pprint(articles)
+    else:
+        pdate, feeds = parse_todays_page(soup)
+        print(pdate)
+        pprint(feeds)
