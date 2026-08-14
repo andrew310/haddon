@@ -1,0 +1,40 @@
+.dockerWrapper {
+  margin-inline-start: auto;
+  margin-inline-end: calc(var(--th-icon-size, 24px) * (1 / 4) * -1); /* Optical alingment */
+  display: flex;
+  gap: 2px;
+  padding-inline-start: var(--th-layout-spacing);
+}
+
+.docker {
+  display: flex;
+  gap: 2px;
+}
+
+.resizeHandle {
+  position: relative;
+  width: 0;
+}
+
+.resizeHandle:focus-visible {
+  outline: 2px solid var(--th-theme-focus);
+}
+
+.resizeHandleGrab {
+  position: absolute;
+  z-index: 1000;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 50px;
+  border-radius: 5px;
+  background-color: var(--th-theme-subdue);
+}
+
+.resizeHandleGrabLeft {
+  left: 0;
+}
+
+.resizeHandleGrabRight {
+  left: -5px;
+}

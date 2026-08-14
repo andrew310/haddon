@@ -1,0 +1,36 @@
+.header {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-areas: "header-start header-center header-end";
+  grid-template-columns: 1fr 3fr 1fr;
+  padding: 0.25rem 0.5rem 0;
+}
+
+.backlinkWrapper {
+  grid-area: header-start;
+  justify-self: start;
+  align-self: center;
+}
+
+.header h1 {
+  font-size: 1rem;
+  color: var(--th-theme-text);
+  font-weight: normal;
+  grid-area: header-center;
+  justify-self: center;
+  align-self: center;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
+  transition: opacity 200ms ease-in-out;
+}
+
+.actionsWrapper {
+  grid-area: header-end;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}

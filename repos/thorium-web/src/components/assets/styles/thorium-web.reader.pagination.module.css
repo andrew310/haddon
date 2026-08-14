@@ -1,0 +1,78 @@
+.wrapper {
+  box-sizing: border-box;
+  display: grid;
+  gap: calc(var(--th-layout-spacing) / 2);
+  grid-template-areas: "pagination-start pagination-center pagination-end";
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  background-color: var(--th-theme-background);
+  color: var(--th-theme-text);
+  align-items: center;
+  width: 100%;
+  max-width: var(--th-layout-constraints-pagination, 100%);
+}
+
+.listItem {
+  box-sizing: border-box;
+  list-style: none;
+}
+
+.listItem:has(.leftButton) {
+  grid-area: pagination-start;
+  justify-self: start;
+}
+
+.listItem:has(.progression) {
+  grid-area: pagination-center;
+  justify-self: center;
+}
+
+.listItem:has(.rightButton) {
+  grid-area: pagination-end;
+  justify-self: end;
+}
+
+
+.listItem button {
+  box-sizing: border-box;
+  padding: calc(var(--th-icon-size, 24px) * (1/4)) calc(var(--th-layout-spacing) / 2);
+  gap: calc(var(--th-layout-spacing) / 2);
+  max-height: calc(var(--th-icon-size, 24px) * 2);
+  max-width: 100%;
+  border-radius: var(--th-layout-radius);
+  display: flex;
+  align-items: center;
+}
+
+.rightButton {
+  margin-inline-start: auto;
+  text-align: end;
+}
+
+.listItem button[data-hovered] {
+  background-color: var(--th-theme-hover);
+  color: var(--th-theme-onHover);
+}
+
+.listItem button[data-focus-visible] {
+  outline: 2px solid var(--th-theme-focus);
+}
+
+.listItem button[data-disabled] {
+  color: var(--th-theme-disable);
+}
+
+.listItem button .label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.listItem button svg {
+  flex: none;
+  width: var(--th-icon-size, 24px);
+  height: var(--th-icon-size, 24px);
+  fill: currentColor;
+}
