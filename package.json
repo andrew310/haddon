@@ -1,0 +1,17 @@
+{
+    "name": "ts-toolkit",
+    "private": true,
+    "devDependencies": {
+        "tslib": "^2.8.1",
+        "typescript": "^5.9.3",
+        "vite": "^7.3.6"
+    },
+    "workspaces": [
+        "helpers",
+        "navigator",
+        "navigator-html-injectables",
+        "shared",
+        "decorator"
+    ],
+    "packageManager": "pnpm@11.1.0"
+}

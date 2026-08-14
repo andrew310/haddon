@@ -1,0 +1,184 @@
+import { ConfigurablePreferences } from "../../preferences/Configurable.ts";
+
+import {
+  TextAlignment,
+  fontSizeRangeConfig,
+  fontWeightRangeConfig,
+  fontWidthRangeConfig
+} from "../../preferences/Types.ts";
+
+import {
+  ensureBoolean,
+  ensureEnumValue,
+  ensureFilter,
+  ensureNonNegative,
+  ensureString,
+  ensureValueInRange
+} from "../../preferences/guards.ts";
+
+export interface IEpubPreferences {
+  backgroundColor?: string | null,
+  blendFilter?: boolean | null,
+  columnCount?: number | null,
+  constraint?: number | null,
+  darkenFilter?: boolean | number | null,
+  deprecatedFontSize?: boolean | null,
+  fontFamily?: string | null,
+  fontSize?: number | null,
+  fontSizeNormalize?: boolean | null,
+  fontOpticalSizing?: boolean | null,
+  fontWeight?: number | null,
+  fontWidth?: number | null,
+  hyphens?: boolean | null,
+  invertFilter?: boolean | number | null,
+  invertGaijiFilter?: boolean | number | null,
+  iOSPatch?: boolean | null,
+  iPadOSPatch?: boolean | null,
+  letterSpacing?: number | null,
+  ligatures?: boolean | null,
+  lineHeight?: number | null,
+  linkColor?: string | null,
+  maximalLineLength?: number | null,
+  minimalLineLength?: number | null,
+  noRuby?: boolean | null,
+  optimalLineLength?: number | null,
+  pageGutter?: number | null,
+  paragraphIndent?: number | null,
+  paragraphSpacing?: number | null,
+  scroll?: boolean | null,
+  scrollPaddingTop?: number | null,
+  scrollPaddingBottom?: number | null,
+  scrollPaddingLeft?: number | null,
+  scrollPaddingRight?: number | null,
+  selectionBackgroundColor?: string | null,
+  selectionTextColor?: string | null,
+  textAlign?: TextAlignment | null,
+  textColor?: string | null,
+  textNormalization?: boolean | null,
+  visitedColor?: string | null,
+  wordSpacing?: number | null
+}
+
+export class EpubPreferences implements ConfigurablePreferences<EpubPreferences> {
+  backgroundColor?: string | null;
+  blendFilter?: boolean | null;
+  constraint?: number | null;
+  columnCount?: number | null;
+  darkenFilter?: boolean | number | null;
+  deprecatedFontSize?: boolean | null;
+  fontFamily?: string | null;
+  fontSize?: number | null;
+  fontSizeNormalize?: boolean | null;
+  fontOpticalSizing?: boolean | null;
+  fontWeight?: number | null;
+  fontWidth?: number | null;
+  hyphens?: boolean | null;
+  invertFilter?: boolean | number | null;
+  invertGaijiFilter?: boolean | number | null;
+  iOSPatch?: boolean | null;
+  iPadOSPatch?: boolean | null;
+  letterSpacing?: number | null;
+  ligatures?: boolean | null;
+  lineHeight?: number | null;
+  linkColor?: string | null;
+  maximalLineLength?: number | null;
+  minimalLineLength?: number | null;
+  noRuby?: boolean | null;
+  optimalLineLength?: number | null;
+  pageGutter?: number | null;
+  paragraphIndent?: number | null;
+  paragraphSpacing?: number | null;
+  scroll?: boolean | null;
+  scrollPaddingTop?: number | null;
+  scrollPaddingBottom?: number | null;
+  scrollPaddingLeft?: number | null;
+  scrollPaddingRight?: number | null;
+  selectionBackgroundColor?: string | null;
+  selectionTextColor?: string | null;
+  textAlign?: TextAlignment | null;
+  textColor?: string | null;
+  textNormalization?: boolean | null;
+  visitedColor?: string | null;
+  wordSpacing?: number | null;
+
+  constructor(preferences: IEpubPreferences = {}) {
+    this.backgroundColor = ensureString(preferences.backgroundColor);
+    this.blendFilter = ensureBoolean(preferences.blendFilter);
+    this.constraint = ensureNonNegative(preferences.constraint);
+    this.columnCount = ensureNonNegative(preferences.columnCount);
+    this.darkenFilter = ensureFilter(preferences.darkenFilter);
+    this.deprecatedFontSize = ensureBoolean(preferences.deprecatedFontSize);
+    this.fontFamily = ensureString(preferences.fontFamily);
+    this.fontSize = ensureValueInRange(preferences.fontSize, fontSizeRangeConfig.range);
+    this.fontSizeNormalize = ensureBoolean(preferences.fontSizeNormalize);
+    this.fontOpticalSizing = ensureBoolean(preferences.fontOpticalSizing);
+    this.fontWeight = ensureValueInRange(preferences.fontWeight, fontWeightRangeConfig.range);
+    this.fontWidth = ensureValueInRange(preferences.fontWidth,fontWidthRangeConfig.range);
+    this.hyphens = ensureBoolean(preferences.hyphens);
+    this.invertFilter = ensureFilter(preferences.invertFilter);
+    this.invertGaijiFilter = ensureFilter(preferences.invertGaijiFilter);
+    this.iOSPatch = ensureBoolean(preferences.iOSPatch);
+    this.iPadOSPatch = ensureBoolean(preferences.iPadOSPatch);
+    this.letterSpacing = ensureNonNegative(preferences.letterSpacing);
+    this.ligatures = ensureBoolean(preferences.ligatures);
+    this.lineHeight = ensureNonNegative(preferences.lineHeight);
+    this.linkColor = ensureString(preferences.linkColor);
+    this.noRuby = ensureBoolean(preferences.noRuby);
+    this.pageGutter = ensureNonNegative(preferences.pageGutter);
+    this.paragraphIndent = ensureNonNegative(preferences.paragraphIndent);
+    this.paragraphSpacing = ensureNonNegative(preferences.paragraphSpacing);
+    this.scroll = ensureBoolean(preferences.scroll);
+    this.scrollPaddingTop = ensureNonNegative(preferences.scrollPaddingTop);
+    this.scrollPaddingBottom = ensureNonNegative(preferences.scrollPaddingBottom);
+    this.scrollPaddingLeft = ensureNonNegative(preferences.scrollPaddingLeft);
+    this.scrollPaddingRight = ensureNonNegative(preferences.scrollPaddingRight);
+    this.selectionBackgroundColor = ensureString(preferences.selectionBackgroundColor);
+    this.selectionTextColor = ensureString(preferences.selectionTextColor);
+    this.textAlign = ensureEnumValue<TextAlignment>(preferences.textAlign, TextAlignment);
+    this.textColor = ensureString(preferences.textColor);
+    this.textNormalization = ensureBoolean(preferences.textNormalization);
+    this.visitedColor = ensureString(preferences.visitedColor);
+    this.wordSpacing = ensureNonNegative(preferences.wordSpacing);
+
+    this.optimalLineLength = ensureNonNegative(preferences.optimalLineLength);
+    this.maximalLineLength = ensureNonNegative(preferences.maximalLineLength);
+    this.minimalLineLength = ensureNonNegative(preferences.minimalLineLength);
+  }
+
+  static serialize(preferences: EpubPreferences): string {
+    const { ...properties } = preferences;
+    return JSON.stringify(properties);
+  }
+
+  static deserialize(preferences: string): EpubPreferences | null {
+    try {
+      const parsedPreferences = JSON.parse(preferences);
+      return new EpubPreferences(parsedPreferences);
+    } catch (error) {
+      console.error("Failed to deserialize preferences:", error);
+      return null;
+    }
+  }
+
+  merging(other: EpubPreferences): EpubPreferences {
+    const merged: IEpubPreferences = { ...this };
+    for (const key of Object.keys(other) as (keyof IEpubPreferences)[]) {
+      if (
+        other[key] !== undefined &&
+        (
+          key !== "maximalLineLength" ||
+          other[key] === null ||
+          (other[key] >= (other.optimalLineLength ?? merged.optimalLineLength ?? 65))
+        ) &&
+        (
+          key !== "minimalLineLength" ||
+          other[key] === null ||
+          (other[key] <= (other.optimalLineLength ?? merged.optimalLineLength ?? 65))
+        )
+      ) {
+        (merged as Record<string, unknown>)[key] = other[key];
+      }
+    }
+    return new EpubPreferences(merged);
+  }
+}

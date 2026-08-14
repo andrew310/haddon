@@ -1,0 +1,206 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.6.3] – 2026-07-23
+
+### Changed
+
+- Scroll-based tracking of the reader's position no longer relies on `IntersectionObserver` at all — current position and everything currently visible are now computed directly from live scroll position instead. As a result, every part of a resource currently on screen can now be reported, not just a single current spot ([#244](https://github.com/readium/ts-toolkit/pull/244))
+
+## [2.6.2] – 2026-07-22
+
+### Fixed
+
+- Snappers now align id monitoring with the actual centering behaviour of `goId`/`goText`, so Timeline stays in sync when navigating to an id ([#243](https://github.com/readium/ts-toolkit/pull/243))
+
+## [2.6.1] – 2026-07-16
+
+### Fixed
+
+- Internal `@readium/*` dependencies were published with an unresolved `workspace:*` version, making the package uninstallable outside the monorepo; they now point to real published versions
+
+## [2.6.0] – 2026-07-16
+
+### Changed
+
+- **Breaking:** Decoration types and equality/style-support logic (`decorationsEqual`, `resolveDecorationForWire`, `supportsDecorationStyle`, etc.) have moved to the new standalone `@readium/decorator` package; the `Decorator` module now delegates rendering to it ([#228](https://github.com/readium/ts-toolkit/pull/228))
+- **Breaking:** `@readium/shared` is now a runtime dependency instead of a dev dependency, and `@readium/helpers` (extracted from `@readium/shared`) is a new dependency ([#228](https://github.com/readium/ts-toolkit/pull/228))
+- **Breaking:** Dropped the CommonJS/UMD build; the package is now ESM-only ([#228](https://github.com/readium/ts-toolkit/pull/228))
+- Snappers now track timeline anchors to support Timeline-driven navigation in HTML publications ([#234](https://github.com/readium/ts-toolkit/pull/234))
+
+## [2.5.0] – 2026–06–04
+
+### Added
+
+- Implemented Decorator API ([#209](https://github.com/readium/ts-toolkit/pull/209))
+
+### Changed
+
+- Snappers and Decorator modules will avoid running callbacks on mutation when not necessary
+- `BasicTextSelection` now returns a ready-to-use `Locator`
+- Decorations appended into the DOM are now appended into the Shadow DOM
+
+## [2.4.4] – 2026–06–04
+
+### Added
+
+- Added a check for trusted events in Keyboard Peripherals to ignore synthetic key events ([#227](https://github.com/readium/ts-toolkit/pull/227))
+
+## [2.4.3] – 2026–04–27
+
+### Fixed
+
+- Fixed an issue where keyboard peripheral input would be hijacked by a previously focused `iframe` after navigation ([#221](https://github.com/readium/ts-toolkit/issues/221))
+
+## [2.4.2] – 2026-05-07
+
+### Added
+
+- `KeyCombo` objects have two new properties, to suppress handling on interactive elements, and on an observable condition
+- `Peripheral` event data now returns the interactive element currently focused
+
+### Fixed
+
+- Keyboard combinations are now properly matched when combinators are `undefined`
+- `Peripheral` event now returns the correct type of `data`
+
+## [2.4.1] – 2026-04-27
+
+### Fixed
+
+- Added missing keyboard combinations for dev tools in Content Protection API
+
+## [2.4.0] – 2026-04-23
+
+### Added
+
+- Vertical snapper to provide limited support for publications with vertical `writing-mode` (only scroll)
+
+### Changed
+
+- Column snapper now supports RTL progression direction
+
+## [2.3.1] – 2026-04-14
+
+### Fixed
+
+- Imports and exports now include file extension ([#205](https://github.com/readium/ts-toolkit/pull/205))
+
+## [2.3.0] – 2026-02-24
+
+### Added
+
+- Implemented content protection ([#194](https://github.com/readium/ts-toolkit/pull/194))
+- Implemented keyboard peripherals ([#194](https://github.com/readium/ts-toolkit/pull/194))
+
+## [2.2.5] – 2026-02-03
+
+### Fixed
+
+- Resolved `Navigator` build issue by aliasing `Shared` module in vite config
+- Fixed type generation issues by ensuring clean rebuild of declaration files
+
+## [2.2.4] – 2026-01-22
+
+### Changed
+
+- Updated dependencies, specifically `css-selector-generator` for consistency with `Navigator`.
+
+## [2.2.3] – 2026-01-19
+
+### Added
+
+- Added `highlight-id` data attribute to non-experimental decoration items, containing the ID of the Decorator ([#184](https://github.com/readium/ts-toolkit/pull/184))
+
+
+## [2.2.2] - 2025-11-28
+
+### Added
+
+- `Decorator` now applies a contrasting color for highlighted text, based on the `tint` and the `background-color` of the document element. ([#173](https://github.com/readium/ts-toolkit/pull/173))
+- `Decorator` now observes mutation events on the document element to update the contrasting color and `mix-blend-mode` of the fallback implementation. ([#173](https://github.com/readium/ts-toolkit/pull/173))
+
+### Changed
+
+- To be consistent with the other injectables, `Decorator` rects are now using className `readium-highlight` instead of `r2-highlight-0`, and a `data-readium` attribute set to `true`.
+
+### Fixed
+
+- Fixed check of selection range that cannot use the Highlight API. Previously, the check was catching ranges for which the ancestor contained an incompatible element e.g. `img`. It now makes sure this element is in the actual range. ([#170](https://github.com/readium/ts-toolkit/pull/170))
+
+## [2.2.1] - 2025-10-28
+
+### Added
+
+- Implemented Preferences API for WebPublication Navigator
+
+## [2.2.0] - 2025-10-17
+
+### Added
+
+- Experimental Module for WebPublication Navigator, with its setup and snapper
+
+## [2.1.1] - 2025-09-10
+
+### Changed
+
+- Updated shared models ([#159](https://github.com/readium/ts-toolkit/issues/159)) as some checks were not working properly in the `iframe` context.
+
+## [2.1.0] - 2025-08-29
+
+### Changed
+
+- Updated shared models.
+
+## [2.0.0] - 2025-08-01
+
+### Added
+
+- Added support for `scroll` event. It now reports progress and triggers a `scroll` event on the `EpubNavigator`. ([#151](https://github.com/readium/ts-toolkit/issues/151), [#72](https://github.com/readium/ts-toolkit/issues/72))
+
+### Changed
+
+- Improved SSR support.
+- `ColumnSnapper` can now support more than 2 columns. ([#61](https://github.com/readium/ts-toolkit/issues/61))
+
+### Removed
+
+- Scroll Anchors have been removed. ([#96](https://github.com/readium/ts-toolkit/issues/96))
+
+### Fixed
+
+## [1.3.3] - 2025-01-31
+
+### Fixed
+
+- Impose limitations on CSS selectors generated by the  `findFirstVisibleLocator` function to avoid issues/crashes.
+
+## [1.3.2] - 2024-11-22
+
+### Fixed
+
+- Export of `Decorator` was missing in build, preventing its usage.
+
+## [1.3.1] - 2024-11-22
+
+### Fixed
+
+- Incorrect NPM publishing, requires new version.
+
+## [1.3.0] - 2024-11-22
+
+### Added
+
+- (`epubReadingSystem`)[https://www.w3.org/TR/epub-rs-33/#app-epubReadingSystem] is available to publications.
+
+### Fixed
+
+- Ensure CSS-only locator ranges are correct, especially relevant when using the `go_text` command (#77).
+
+### Changed
+
+- The `ColumnSnapper` and `ScrollSnapper` report progress that now includes a reference progression – a.k.a. progression by a ReadiumWindow viewport – in addition to the current one (#62).

@@ -1,0 +1,295 @@
+import { LineLengths } from "../../helpers/index.ts";
+import { getContentWidth, getContentHeight } from "../../helpers/dimensions.ts";
+import { EpubSettings } from "../preferences/EpubSettings.ts";
+import { IUserProperties, RSProperties, UserProperties } from "./Properties.ts";
+
+export interface IReadiumCSS {
+  rsProperties: RSProperties;
+  userProperties: UserProperties;
+  lineLengths: LineLengths;
+  container: HTMLElement;
+  constraint: number;
+  isCJKVertical?: boolean;
+}
+
+export class ReadiumCSS {
+  rsProperties: RSProperties;
+  userProperties: UserProperties;
+  lineLengths: LineLengths;
+  container: HTMLElement;
+  containerParent: HTMLElement;
+  constraint: number;
+  private readonly isCJKVertical: boolean;
+  private cachedColCount: number | null | undefined;
+  private effectiveContainerWidth: number;
+
+  constructor(props: IReadiumCSS) {
+    this.rsProperties = props.rsProperties;
+    this.userProperties = props.userProperties;
+    this.lineLengths = props.lineLengths;
+    this.container = props.container;
+    this.containerParent = props.container.parentElement || document.documentElement;
+    this.constraint = props.constraint;
+    this.isCJKVertical = props.isCJKVertical ?? false;
+    this.cachedColCount = props.userProperties.colCount;
+    this.effectiveContainerWidth = getContentWidth(this.containerParent);
+  }
+
+  update(settings: EpubSettings) {
+    // We need to keep the column count reference for resizeHandler
+    this.cachedColCount = settings.columnCount;
+
+    if (settings.constraint !== this.constraint)
+      this.constraint = settings.constraint;
+
+    if (settings.pageGutter !== this.rsProperties.pageGutter)
+      this.rsProperties.pageGutter = settings.pageGutter;
+
+    if (settings.scrollPaddingBottom !== this.rsProperties.scrollPaddingBottom)
+      this.rsProperties.scrollPaddingBottom = settings.scrollPaddingBottom;
+
+    if (settings.scrollPaddingLeft !== this.rsProperties.scrollPaddingLeft)
+      this.rsProperties.scrollPaddingLeft = settings.scrollPaddingLeft;
+
+    if (settings.scrollPaddingRight !== this.rsProperties.scrollPaddingRight)
+      this.rsProperties.scrollPaddingRight = settings.scrollPaddingRight;
+
+    if (settings.scrollPaddingTop !== this.rsProperties.scrollPaddingTop)
+      this.rsProperties.scrollPaddingTop = settings.scrollPaddingTop;
+
+    if (settings.experiments !== this.rsProperties.experiments)
+      this.rsProperties.experiments = settings.experiments;
+
+    // This has to be updated before pagination
+    // otherwise the metrics won’t be correct for line length
+    this.lineLengths.update({
+      fontFace: settings.fontFamily,
+      letterSpacing: settings.letterSpacing,
+      padding: settings.scroll
+        ? (settings.scrollPaddingLeft || 0) + (settings.scrollPaddingRight || 0)
+        : (settings.pageGutter || 0) * 2,
+      wordSpacing: settings.wordSpacing,
+      optimalChars: settings.optimalLineLength,
+      minChars: settings.minimalLineLength,
+      maxChars: settings.maximalLineLength
+    });
+
+    const layout = this.updateLayout(settings.fontSize, settings.deprecatedFontSize || settings.iOSPatch, settings.scroll, settings.columnCount);
+
+    if (layout?.effectiveContainerWidth)
+      this.effectiveContainerWidth = layout?.effectiveContainerWidth;
+
+    const updated: IUserProperties = {
+      a11yNormalize: settings.textNormalization,
+      backgroundColor: settings.backgroundColor,
+      blendFilter: settings.blendFilter,
+      bodyHyphens: typeof settings.hyphens !== "boolean"
+        ? null
+        : settings.hyphens
+          ? "auto"
+          : "none",
+      colCount: layout?.colCount,
+      darkenFilter: settings.darkenFilter,
+      deprecatedFontSize: settings.deprecatedFontSize,
+      fontFamily: settings.fontFamily,
+      fontOpticalSizing: typeof settings.fontOpticalSizing !== "boolean"
+        ? null
+        : settings.fontOpticalSizing
+          ? "auto"
+          : "none",
+      fontSize: settings.fontSize,
+      fontSizeNormalize: settings.fontSizeNormalize,
+      fontWeight: settings.fontWeight,
+      fontWidth: settings.fontWidth,
+      invertFilter: settings.invertFilter,
+      invertGaijiFilter: settings.invertGaijiFilter,
+      iOSPatch: settings.iOSPatch,
+      iPadOSPatch: settings.iPadOSPatch,
+      letterSpacing: settings.letterSpacing,
+      ligatures: typeof settings.ligatures !== "boolean"
+        ? null
+        : settings.ligatures
+          ? "common-ligatures"
+          : "none",
+      lineHeight: settings.lineHeight,
+      lineLength: layout?.effectiveLineLength,
+      linkColor: settings.linkColor,
+      noRuby: settings.noRuby,
+      paraIndent: settings.paragraphIndent,
+      paraSpacing: settings.paragraphSpacing,
+      selectionBackgroundColor: settings.selectionBackgroundColor,
+      selectionTextColor: settings.selectionTextColor,
+      textAlign: settings.textAlign,
+      textColor: settings.textColor,
+      view: typeof settings.scroll !== "boolean"
+        ? null
+        : settings.scroll
+          ? "scroll"
+          : "paged",
+      visitedColor: settings.visitedColor,
+      wordSpacing: settings.wordSpacing
+    };
+
+    this.userProperties = new UserProperties(updated);
+  }
+
+  private updateLayout(scale: number | null, ignoreCompensation: boolean | null, scroll: boolean | null, colCount?: number | null) {
+    // CJK vertical text flows along the block axis (height); the inline axis
+    // (width) must not be constrained by line-length at all — use the full
+    // parent width minus the known constraint.
+    if (this.isCJKVertical) {
+      return this.computeCJKVerticalLength(scale, ignoreCompensation);
+    }
+
+    const isScroll = scroll ?? this.userProperties.view === "scroll";
+
+    if (isScroll) {
+      return this.computeScrollLength(scale, ignoreCompensation);
+    } else {
+      return this.paginate(scale, ignoreCompensation, colCount);
+    }
+  }
+
+  private getCompensatedMetrics(scale: number | null, ignoreCompensation: boolean | null) {
+    const zoomFactor = scale || this.userProperties.fontSize || 1;
+    const zoomCompensation = zoomFactor < 1
+      ? 1 / zoomFactor
+      : ignoreCompensation
+        ? zoomFactor
+        : 1;
+
+    return {
+      zoomFactor: zoomFactor,
+      zoomCompensation: zoomCompensation,
+      optimal: Math.round(this.lineLengths.optimalLineLength) * zoomFactor,
+      minimal: this.lineLengths.minimalLineLength !== null
+        ? Math.round(this.lineLengths.minimalLineLength * zoomFactor)
+        : null,
+      maximal: this.lineLengths.maximalLineLength !== null
+        ? Math.round(this.lineLengths.maximalLineLength * zoomFactor)
+        : null
+    }
+  }
+
+  // Note: Kept intentionally verbose for debugging
+  // TODO: As scroll shows, the effective line-length
+  // should be the same as uncompensated when scale >= 1
+  private paginate(scale: number | null, ignoreCompensation: boolean | null, colCount?: number | null) {
+    const constrainedWidth = Math.round(getContentWidth(this.containerParent) - this.constraint);
+    const metrics = this.getCompensatedMetrics(scale, ignoreCompensation);
+    const { zoomCompensation, optimal, minimal, maximal } = metrics;
+
+    // Helper function for single column width calculation
+    const getSingleColWidth = (): number => {
+      if (constrainedWidth >= optimal && maximal !== null) {
+        return Math.min(Math.round(maximal * zoomCompensation), constrainedWidth);
+      }
+      return constrainedWidth;
+    };
+
+    let RCSSColCount = 1;
+    let effectiveContainerWidth = constrainedWidth;
+
+    if (colCount === undefined) {
+      return {
+        colCount: undefined,
+        effectiveContainerWidth: effectiveContainerWidth,
+        effectiveLineLength: Math.round((effectiveContainerWidth / RCSSColCount) * zoomCompensation)
+      };
+    }
+
+    if (colCount === null) {
+      if (constrainedWidth >= optimal && maximal !== null) {
+        RCSSColCount = Math.floor(constrainedWidth / optimal);
+        const requiredWidth = Math.round(RCSSColCount * (maximal * zoomCompensation));
+        effectiveContainerWidth = Math.min(requiredWidth, constrainedWidth);
+      } else {
+        effectiveContainerWidth = getSingleColWidth();
+      }
+    } else if (colCount > 1) {
+      const minRequiredWidth = Math.round(colCount * (minimal !== null ? minimal : optimal));
+
+      if (constrainedWidth >= minRequiredWidth) {
+        RCSSColCount = colCount;
+        if (maximal === null) {
+          effectiveContainerWidth = constrainedWidth
+        } else {
+          const requiredWidth = Math.round(RCSSColCount * (maximal * zoomCompensation));
+          effectiveContainerWidth = Math.min(requiredWidth, constrainedWidth);
+        }
+      } else {
+        if (minimal !== null && constrainedWidth < Math.round(colCount * minimal)) {
+          RCSSColCount = Math.floor(constrainedWidth / minimal);
+          if (RCSSColCount <= 1) {
+            RCSSColCount = 1;
+            effectiveContainerWidth = getSingleColWidth();
+          } else {
+            const requiredWidth = Math.round(RCSSColCount * (optimal * zoomCompensation));
+            effectiveContainerWidth = Math.min(requiredWidth, constrainedWidth);
+          }
+        } else {
+          RCSSColCount = colCount;
+          const requiredWidth = Math.round(RCSSColCount * (optimal * zoomCompensation));
+          effectiveContainerWidth = Math.min(requiredWidth, constrainedWidth);
+        }
+      }
+    } else {
+      RCSSColCount = 1;
+      effectiveContainerWidth = getSingleColWidth();
+    }
+
+    return {
+      colCount: RCSSColCount,
+      effectiveContainerWidth: effectiveContainerWidth,
+      effectiveLineLength: Math.round(((effectiveContainerWidth / RCSSColCount) / (scale && scale >= 1 ? scale : 1)) * zoomCompensation)
+    };
+  }
+
+  private computeCJKVerticalLength(scale: number | null, ignoreCompensation: boolean | null) {
+    const w = Math.round(getContentWidth(this.containerParent) - this.constraint);
+    const h = Math.round(getContentHeight(this.containerParent));
+    const metrics = this.getCompensatedMetrics(scale, ignoreCompensation);
+    const effectiveLineLength = metrics.maximal !== null
+      ? Math.min(Math.round(metrics.maximal * metrics.zoomCompensation), h)
+      : h;
+    return { colCount: undefined, effectiveContainerWidth: w, effectiveLineLength };
+  }
+
+  // This behaves as paginate where colCount = 1
+  private computeScrollLength(scale: number | null, ignoreCompensation: boolean | null) {
+    const constrainedWidth = Math.round(getContentWidth(this.containerParent) - (this.constraint));
+    const metrics = this.getCompensatedMetrics(scale && (scale < 1 || ignoreCompensation) ? scale : 1, ignoreCompensation);
+    const zoomCompensation = metrics.zoomCompensation;
+    const optimal = metrics.optimal;
+    const maximal = metrics.maximal;
+
+    let RCSSColCount = undefined;
+    let effectiveContainerWidth = constrainedWidth;
+    let effectiveLineLength = Math.round(optimal * zoomCompensation);
+
+    if (maximal === null) {
+      effectiveLineLength = constrainedWidth;
+    } else {
+      const computedWidth = Math.min(Math.round(maximal * zoomCompensation), constrainedWidth);
+      effectiveLineLength = ignoreCompensation ? computedWidth : Math.round(computedWidth * zoomCompensation);
+    }
+
+    return {
+      colCount: RCSSColCount,
+      effectiveContainerWidth: effectiveContainerWidth,
+      effectiveLineLength: effectiveLineLength
+    }
+  }
+
+  setContainerWidth() {
+    this.container.style.width = `${ this.effectiveContainerWidth }px`;
+  }
+
+  resizeHandler() {
+    const pagination = this.updateLayout(this.userProperties.fontSize, this.userProperties.deprecatedFontSize || this.userProperties.iOSPatch, this.userProperties.view === "scroll", this.cachedColCount);
+    this.userProperties.colCount = pagination.colCount;
+    this.userProperties.lineLength = pagination.effectiveLineLength;
+    this.effectiveContainerWidth = pagination.effectiveContainerWidth;
+    this.container.style.width = `${ this.effectiveContainerWidth }px`;
+  }
+}
