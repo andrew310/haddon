@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+
+__license__ = 'GPL v3'
+__copyright__ = '2009, Darko Miletic <darko.miletic at gmail.com>'
+'''
+www.tijd.be
+'''
+from calibre.ebooks.BeautifulSoup import Tag
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+def new_tag(soup, name, attrs=()):
+    impl = getattr(soup, 'new_tag', None)
+    if impl is not None:
+        return impl(name, attrs=dict(attrs))
+    return Tag(soup, name, attrs=attrs or None)
+
+
+class DeTijd(BasicNewsRecipe):
+    title = 'De Tijd'
+    __author__ = 'Darko Miletic'
+    description = 'News from Belgium in Dutch'
+    publisher = 'De Tijd'
+    category = 'news, politics, Belgium'
+    oldest_article = 2
+    max_articles_per_feed = 100
+    no_stylesheets = True
+    use_embedded_content = False
+    encoding = 'utf-8'
+    language = 'nl_BE'
+
+    lang = 'nl-BE'
+    direction = 'ltr'
+
+    keep_only_tags = [
+        dict(name='div', attrs={'id': 'lcol'}),
+        dict(name='div', attrs={'class': 'l-main-container-article__asset-container'}),
+        dict(name='div', attrs={'class': 'l-main-container-article__body clearfix highlightable '}),
+        dict(name='div', attrs={'class': 'l-main-container-article__intro highlightable '}),
+        dict(name='div', attrs={'class': 'l-main-container-article__sidebar-inline'}),
+        dict(name='div', attrs={'class': 'l-main-container-article__title '}),
+    ]
+    remove_tags = [dict(name=['embed', 'object']), dict(name='div', attrs={'id': 'art_reactwrap'})]
+    remove_tags_after = dict(name='div', attrs={'id': 'art_author'})
+
+    feeds = [
+        ('Volledig nieuwsaanbod', 'https://www.tijd.be/rss/nieuws.xml'),
+        ('Ondernemen', 'https://www.tijd.be/rss/ondernemen.xml'),
+        ('Politiek en Economie', 'https://www.tijd.be/rss/politiek.xml'),
+        ('Markten', 'https://www.tijd.be/rss/markten_live.xml'),
+        ('Opinie', 'https://www.tijd.be/rss/opinie.xml'),
+        ('Cultuur', 'https://www.tijd.be/rss/cultuur.xml'),
+        ('Netto', 'https://www.tijd.be/rss/netto.xml'),
+        ('Sabato', 'https://www.tijd.be/rss/sabato.xml'),
+    ]
+
+    def preprocess_html(self, soup):
+        del soup.body['onload']
+        for item in soup.findAll(style=True):
+            del item['style']
+        soup.html['lang'] = self.lang
+        soup.html['dir'] = self.direction
+        mlang = new_tag(soup, 'meta', [('http-equiv', 'Content-Language'), ('content', self.lang)])
+        mcharset = new_tag(soup, 'meta', [('http-equiv', 'Content-Type'), ('content', 'text/html; charset=utf-8')])
+        soup.head.insert(0, mlang)
+        soup.head.insert(1, mcharset)
+        return soup

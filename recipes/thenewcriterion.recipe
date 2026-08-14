@@ -1,0 +1,102 @@
+# -*- mode: python -*-
+# -*- coding: utf-8 -*-
+# vi: set fenc=utf-8 ft=python :
+# kate: encoding utf-8; syntax python;
+
+__license__ = 'GPL v3'
+__copyright__ = '2019, Darko Miletic <darko.miletic at gmail.com>'
+'''
+www.newcriterion.com
+'''
+
+from calibre import strftime
+from calibre.ptempfile import PersistentTemporaryFile
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class TheNewCriterion(BasicNewsRecipe):
+    title = 'The New Criterion'
+    __author__ = 'Darko Miletic'
+    description = 'On the front lines of the battle for culture'
+    publisher = 'The Foundation for Cultural Review'
+    category = 'art, politics, USA, world'
+    oldest_article = 40
+    no_stylesheets = True
+    encoding = 'utf8'
+    use_embedded_content = False
+    language = 'en'
+    remove_empty_feeds = True
+    publication_type = 'magazine'
+    needs_subscription = 'optional'
+    delay = 1
+    simultaneous_downloads = 1
+    timeout = 8
+    ignore_duplicate_articles = {'url'}
+    articles_are_obfuscated = True
+    temp_files = []
+    fetch_retries = 10
+    auto_cleanup = True
+    masthead_url = 'https://www.newcriterion.com/themes/thenewcriterion/assets/img/horizontal-logo.svg'
+    extra_css = '''
+        body{font-family: Galliard, serif}
+    '''
+
+    conversion_options = {'comment': description, 'tags': category, 'publisher': publisher, 'language': language}
+
+    def get_browser(self):
+        br = BasicNewsRecipe.get_browser(self)
+        if self.username is not None and self.password is not None:
+            br.set_cookie('wordpress_test_cookie', 'WP+Cookie+check', '.newcriterion.com')
+            br.open('https://newcriterion.com/wp-login.php')
+            br.select_form(name='loginform')
+            br['log'] = self.username
+            br['pwd'] = self.password
+            br.submit()
+        return br
+
+    def parse_index(self):
+        months = ('january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december')
+        slug = months[int(strftime('%m')) - 1] + '-' + strftime('%Y')
+        currentIssue_url = 'https://newcriterion.com/issues/' + slug + '/'
+        self.log(currentIssue_url)
+        soup1 = self.index_to_soup(currentIssue_url)
+        date = strftime(' %B %Y')
+        articles = []
+        subset = soup1.find('div', attrs={'class': 'issue-layout'})
+        if subset is None:
+            return []
+        for art in subset.findAll('article', attrs={'class': 'article-display'}):
+            h2 = art.find('h2')
+            if h2 is None:
+                continue
+            a = h2.find('a', href=True)
+            if a is None or '/article/' not in a['href']:
+                continue
+            title = self.tag_to_string(a).strip()
+            excerpt = art.find('p', attrs={'class': 'post-excerpt'})
+            description = self.tag_to_string(excerpt).strip() if excerpt else ''
+            articles.append({
+                'title': title,
+                'date': date,
+                'url': a['href'],
+                'description': description,
+            })
+        return [(self.title, articles)]
+
+    def get_obfuscated_article(self, url):
+        result = None
+        count = 0
+        while count < self.fetch_retries:
+            try:
+                response = self.browser.open(url, timeout=self.timeout)
+                html = response.read()
+                count = self.fetch_retries
+                tfile = PersistentTemporaryFile('_fa.html')
+                tfile.write(html)
+                tfile.close()
+                self.temp_files.append(tfile)
+                result = tfile.name
+            except Exception:
+                print('Retrying download...')
+            count += 1
+        return result

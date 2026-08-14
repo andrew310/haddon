@@ -1,0 +1,33 @@
+from calibre.web.feeds.recipes import BasicNewsRecipe
+
+
+class Tovima(BasicNewsRecipe):
+    title = 'To Vima'
+    __author__ = 'Stelios'
+    description = ' News from Greece'
+    oldest_article = 3
+    publisher = 'To Vima'
+    category = 'news, GR'
+    language = 'el'
+    encoding = 'utf8'
+    cover_url = 'http://www.tovima.gr/Themes/1/Default/Media/Home//small-n-short-logo.jpg'
+    no_stylesheets = True
+    use_embedded_content = False
+    remove_empty_feeds = True
+    extra_css = '''
+                        .article_title{font-family :Arial,Helvetica,sans-serif; font-weight: bold; font-size:large;}
+                        .article_text{font-family :Arial,Helvetica,sans-serif; font-size:x-small;}
+                     '''
+    keep_only_tags = [dict(name='div', attrs={'class': ['article_title']}), dict(name='div', attrs={'class': ['article_text']})]
+    remove_tags = [dict(name='div', attrs={'class': ['article_cat']})]
+    feeds = [
+        ('\u03c0\u03bf\u03bb\u03b9\u03c4\u03b9\u03ba\u03ae', 'http://www.tovima.gr/feed/politics/'),
+        ('\u03bf\u03b9\u03ba\u03bf\u03bd\u03bf\u03bc\u03af\u03b1', 'http://www.tovima.gr/feed/finance/'),
+        ('\u03b3\u03bd\u03ce\u03bc\u03b5\u03c2', 'http://www.tovima.gr/feed/opinions/'),
+        ('blogs', 'http://www.tovima.gr/feed/blogs/'),
+        ('\u03ba\u03cc\u03c3\u03bc\u03bf\u03c2', 'http://www.tovima.gr/feed/world/'),
+        ('science', 'http://www.tovima.gr/feed/science/'),
+        ('\u03ba\u03bf\u03b9\u03bd\u03c9\u03bd\u03af\u03b1', 'http://www.tovima.gr/feed/society/'),
+        ('\u03c0\u03bf\u03bb\u03b9\u03c4\u03b9\u03c3\u03bc\u03cc\u03c2', 'http://www.tovima.gr/feed/culture/'),
+        ('\u03b1\u03b8\u03bb\u03b7\u03c4\u03b9\u03c3\u03bc\u03cc\u03c2', 'http://www.tovima.gr/feed/sports/'),
+    ]

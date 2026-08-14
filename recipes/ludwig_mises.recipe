@@ -1,0 +1,12 @@
+from calibre.web.feeds.news import AutomaticNewsRecipe
+
+
+class BasicUserRecipe1373130372(AutomaticNewsRecipe):
+    title = 'Ludwig von Mises Institute'
+    __author__ = 'anywho'
+    language = 'en'
+    oldest_article = 7
+    max_articles_per_feed = 100
+    auto_cleanup = True
+
+    feeds = [('Daily Articles (Full text version)', 'http://feed.mises.org/MisesFullTextArticles'), ('Mises Blog Posts', 'http://mises.org/blog/index.rdf')]

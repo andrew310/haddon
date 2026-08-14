@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+__license__ = 'GPL v3'
+__copyright__ = '2009, Darko Miletic <darko.miletic at gmail.com>'
+'''
+seattletimes.nwsource.com
+'''
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+def classes(classes):
+    q = frozenset(classes.split(' '))
+    return dict(attrs={'class': lambda x: x and frozenset(x.split()).intersection(q)})
+
+
+class SeattleTimes(BasicNewsRecipe):
+    title = 'The Seattle Times'
+    __author__ = 'Kovid Goyal'
+    description = 'News from Seattle and USA'
+    publisher = 'The Seattle Times'
+    category = 'news, politics, USA'
+    oldest_article = 2
+    max_articles_per_feed = 100
+    no_stylesheets = True
+    use_embedded_content = False
+    encoding = 'utf-8'
+    language = 'en_US'
+
+    keep_only_tags = [classes('article-header featured-media article-body')]
+    remove_tags = [classes('most-read-container native-ad-article ad-container user-messaging')]
+
+    feeds = [
+        ('Local News', 'https://www.seattletimes.com/seattle-news/feed/'),
+        ('Nation & World', 'https://www.seattletimes.com/nation-world/feed/'),
+        ('Business', 'https://www.seattletimes.com/business/feed/'),
+        ('Sports', 'https://www.seattletimes.com/sports/feed/'),
+        ('Entertainment', 'https://www.seattletimes.com/entertainment/feed/'),
+        ('Life', 'https://www.seattletimes.com/life/feed/'),
+        ('Opinion', 'https://www.seattletimes.com/opinion/feed/'),
+        ('Photo and Video', 'https://www.seattletimes.com/photo-video/feed/'),
+    ]
+
+    def get_browser(self):
+        return BasicNewsRecipe.get_browser(self, user_agent='common_words/based')

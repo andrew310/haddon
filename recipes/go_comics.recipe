@@ -1,0 +1,108 @@
+#!/usr/bin/env python
+import json
+from datetime import datetime, timedelta
+
+from calibre.ebooks.BeautifulSoup import BeautifulSoup
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class GoComics(BasicNewsRecipe):
+    title = 'Go Comics'
+    __author__ = 'unkn0wn'
+    description = 'The best and funniest cartoons you loved then and now—all in one place!'
+    oldest_article = 2
+    language = 'en'
+    remove_empty_feeds = True
+    masthead_url = 'https://auth.amuniversal.com/development-assets/go-comics/images/logo-horizontal.svg'
+    cover_url = 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/GoComics_logo.jpg/960px-GoComics_logo.jpg'
+    simultaneous_downloads = 1
+
+    recipe_specific_options = {
+        'coverurl': {
+            'short': 'Cover URL',
+            'long': 'URL of an image to be used as book cover',
+            'default': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/GoComics_logo.jpg/960px-GoComics_logo.jpg',
+        },
+        'mastheadurl': {
+            'short': 'Masthead URL',
+            'long': 'URL of an image to be used as masthead',
+            'default': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/GoComics_logo.jpg/960px-GoComics_logo.jpg',
+        },
+        'comics': {
+            'short': 'enter the slugs of the url\nof the comics you want seperated by a space',
+            'long': 'calvinandhobbes garfield animalcrackers the-born-loser ... ...',
+            'default': 'calvinandhobbes garfield animalcrackers pearlsbeforeswine bc peanuts',
+        },
+        'days': {
+            'short': 'Oldest article to download from this news source. In days ',
+            'long': 'For example, 3, gives you comics from past 3 days',
+            'default': str(oldest_article),
+        },
+        'res': {
+            'short': 'For hi-res images, select a resolution from the\nfollowing options: 800, 1000, 1200 or 2400',
+            'long': 'This is useful for non e-ink devices, and for a lower file size\nthan the default, use 400 or 300.',
+            'default': '1000',
+        },
+        'rev': {
+            'short': 'Reverse the order of articles in each feed?',
+            'long': 'enter yes',
+            'default': 'no',
+        },
+    }
+
+    def __init__(self, *args, **kwargs):
+        BasicNewsRecipe.__init__(self, *args, **kwargs)
+        r = self.recipe_specific_options.get('rev')
+        if r and isinstance(r, str):
+            if r.lower().strip() == 'yes':
+                self.reverse_article_order = True
+        r = self.recipe_specific_options.get('coverurl')
+        if r and isinstance(r, str):
+            self.cover_url = r
+        r = self.recipe_specific_options.get('mastheadurl')
+        if r and isinstance(r, str):
+            self.masthead_url = r
+
+    def parse_index(self):
+        d = self.recipe_specific_options.get('days')
+        if d and isinstance(d, str):
+            self.oldest_article = int(d)
+
+        dates = [(datetime.now() - timedelta(days=i)).strftime('%Y/%m/%d') for i in range(self.oldest_article)]
+
+        u = self.recipe_specific_options.get('comics')
+        if u and isinstance(u, str):
+            coms = u.split()
+
+        feeds = []
+
+        for x in coms:
+            section = x.upper()
+            self.log(section)
+            articles = []
+            for day in dates:
+                title = section + ' | ' + day
+                url = 'https://www.gocomics.com/' + x + '/' + day
+                self.log('\t', title, '\n\t\t', url)
+                articles.append({'title': title, 'url': url})
+            if articles:
+                feeds.append((section, articles))
+        return feeds
+
+    def preprocess_raw_html(self, raw, *a):
+        width = '1000'
+        w = self.recipe_specific_options.get('res')
+        if w and isinstance(w, str):
+            width = w
+        soup = BeautifulSoup(raw)
+        div = soup.find(attrs={'class': lambda x: x and x.startswith('ShowComicViewer_showComicViewer__comic')})
+        script = div.find('script', attrs={'type': 'application/ld+json'})
+        data = json.loads(self.tag_to_string(script))
+        title = '<h1>' + data['name'] + '</h1>'
+        auth = '<p style="font-size: small;">' + data['description'] + '</p>'
+        img = '<img src={}>'.format(data['contentUrl'] + '?optimizer=image&width=' + width + '&quality=85')
+        return '<html><body>' + title + img + auth + '</body></html>'
+
+    def populate_article_metadata(self, article, soup, first):
+        article.title = self.tag_to_string(soup.find('h1'))
+        article.summary = article.text_summary = self.tag_to_string(soup.find('p'))

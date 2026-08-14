@@ -1,0 +1,80 @@
+import re
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class AdvancedUserRecipe1283848012(BasicNewsRecipe):
+    description = 'This is a recipe of Ynet.co.il.'
+    cover_url = 'http://www.ynet.co.il/images/CENTRAL_logo.gif'
+    title = 'Ynet'
+    __author__ = 'marbs & barakplasma'
+    language = 'he'
+    extra_css = 'img {max-width:100%;direction: rtl;} #article{direction: rtl;} div{direction: rtl;} title{direction: rtl; } article_description{direction: rtl; } a.article{direction: rtl; } calibre_feed_description{direction: rtl; } body{direction: ltr;}'  # noqa: E501
+    remove_attributes = ['width']
+    simultaneous_downloads = 5
+    keep_only_tags = [
+        dict(name='h1', attrs={'class': 'mainTitle'}),
+        dict(name='h2', attrs={'class': 'subTitle'}),
+        dict(name='div', attrs={'class': 'text_editor_paragraph rtl'}),
+        dict(name='div', attrs={'class': 'ArticleBodyComponent'}),
+    ]
+    remove_javascript = True
+    timefmt = '[%a, %d %b, %Y]'
+    oldest_article = 1
+    remove_tags = [dict(name='p', attrs={'text': ['&nbsp;']})]
+    max_articles_per_feed = 100
+    preprocess_regexps = [(re.compile(r'<p>&nbsp;</p>', re.DOTALL | re.IGNORECASE), lambda match: '')]
+
+    def preprocess_html(self, soup):
+        soup.html['dir'] = 'rtl'
+        soup.body['dir'] = 'rtl'
+        return soup
+
+    feeds = [
+        ('כל ערוץ החדשות', 'http://www.ynet.co.il/Integration/StoryRss2.xml'),
+        ('מבזקי החדשות', 'http://www.ynet.co.il/Integration/StoryRss1854.xml'),
+        ('בלוגוס', 'http://www.ynet.co.il/Integration/StoryRss3764.xml'),
+        ('כל ערוץ הדעות', 'http://www.ynet.co.il/Integration/StoryRss194.xml'),
+        ('יומני סבר', 'http://www.ynet.co.il/Integration/StoryRss3487.xml'),
+        ('כל ערוץ הצרכנות', 'http://www.ynet.co.il/Integration/StoryRss5363.xml'),
+        ('כל ערוץ הספורט', 'http://www.ynet.co.il/Integration/StoryRss3.xml'),
+        ('כדורגל ישראלי', 'http://www.ynet.co.il/Integration/StoryRss57.xml'),
+        ('כל ערוץ התרבות', 'http://www.ynet.co.il/Integration/StoryRss538.xml'),
+        ('בלוג הפרעות', 'http://www.ynet.co.il/Integration/StoryRss4450.xml'),
+        ('חיים בסרט', 'http://www.ynet.co.il/Integration/StoryRss3908.xml'),
+        ('כל ערוץ מעורבות', 'http://www.ynet.co.il/Integration/StoryRss3262.xml'),
+        ('בית', 'http://www.ynet.co.il/Integration/StoryRss4113.xml'),
+        ('זוגיות', 'http://www.ynet.co.il/Integration/StoryRss4107.xml'),
+        ('מלחשים', 'http://www.ynet.co.il/Integration/StoryRss4105.xml'),
+        ('סטייל', 'http://www.ynet.co.il/Integration/StoryRss4104.xml'),
+        ('קריירה', 'http://www.ynet.co.il/Integration/StoryRss4111.xml'),
+        ('שף', 'http://www.ynet.co.il/Integration/StoryRss4335.xml'),
+        ('כל ערוץ הבריאות', 'http://www.ynet.co.il/Integration/StoryRss1208.xml'),
+        ('כל הערוץ הירוק', 'http://www.ynet.co.il/Integration/StoryRss4872.xml'),
+        ('סביבה', 'http://www.ynet.co.il/Integration/StoryRss4879.xml'),
+        ('בעלי חיים', 'http://www.ynet.co.il/Integration/StoryRss4880.xml'),
+        ('שאלות חיות', 'http://www.ynet.co.il/Integration/StoryRss4926.xml'),
+        ('כל ערוץ המחשבים', 'http://www.ynet.co.il/Integration/StoryRss544.xml'),
+        ('סקירות', 'http://www.ynet.co.il/Integration/StoryRss2424.xml'),
+        ('אינטרנט', 'http://www.ynet.co.il/Integration/StoryRss546.xml'),
+        ('משחקים', 'http://www.ynet.co.il/Integration/StoryRss571.xml'),
+        ('PC מגזין', 'http://www.ynet.co.il/Integration/StoryRss1694.xml'),
+        ('טכנולוגיה', 'http://www.ynet.co.il/Integration/StoryRss545.xml'),
+        ('קטעי קישור', 'http://www.ynet.co.il/Integration/StoryRss4540.xml'),
+        ('מרושתים', 'http://www.ynet.co.il/Integration/StoryRss4541.xml'),
+        ('מדריכים ותוכנה', 'http://www.ynet.co.il/Integration/StoryRss786.xml'),
+        ('כל ערוץ הרכב', 'http://www.ynet.co.il/Integration/StoryRss550.xml'),
+        ('כל ערוץ התיירות', 'http://www.ynet.co.il/Integration/StoryRss598.xml'),
+        ('כל ערוץ ההורים', 'http://www.ynet.co.il/Integration/StoryRss3052.xml'),
+        ('כל ערוץ האוכל', 'http://www.ynet.co.il/Integration/StoryRss975.xml'),
+        ('כל ערוץ היהדות', 'http://www.ynet.co.il/Integration/StoryRss4403.xml'),
+        ('במנהרת הזמן', 'http://www.ynet.co.il/Integration/StoryRss4542.xml'),
+        ('כל ערוץ הכלכלה', 'http://www.ynet.co.il/Integration/StoryRss6.xml'),
+        ('כל ערוץ מדע וטבע', 'http://www.ynet.co.il/Integration/StoryRss2142.xml'),
+        ('כל ערוץ יחסים', 'http://www.ynet.co.il/Integration/StoryRss3925.xml'),
+        ('News', 'https://www.ynet.co.il/3rdparty/mobile/rss/ynetnews/3082/'),
+        ('News updates', 'https://www.ynet.co.il/3rdparty/mobile/rss/ynetnews/3089/'),
+        ('Opinion', 'https://www.ynet.co.il/3rdparty/mobile/rss/ynetnews/3084/'),
+        ('Culture', 'https://www.ynet.co.il/3rdparty/mobile/rss/ynetnews/3086/'),
+        ('Jewish', 'https://www.ynet.co.il/3rdparty/mobile/rss/ynetnews/3443/'),
+    ]

@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+# License: GPLv3 Copyright: 2012, Kovid Goyal <kovid at kovidgoyal.net>
+
+from functools import wraps
+from typing import Any
+
+from calibre import prints
+from calibre.constants import DEBUG
+from calibre.devices.interface import DevicePlugin
+from calibre.utils.localization import _
+
+
+def debug(*args, **kwargs):
+    if DEBUG:
+        prints('MTP:', *args, **kwargs)
+
+
+def synchronous(func):
+    @wraps(func)
+    def synchronizer(self, *args, **kwargs):
+        with self.lock:
+            return func(self, *args, **kwargs)
+
+    return synchronizer
+
+
+class MTPDeviceBase(DevicePlugin):
+    name = 'MTP Device Interface'
+    gui_name = _('MTP device')
+    icon = 'devices/tablet.png'
+    description = _('Communicate with MTP devices')
+    author = 'Kovid Goyal'
+    version = (1, 0, 0)
+    prefs: dict[str, Any]
+
+    def __init__(self, *args, **kwargs):
+        DevicePlugin.__init__(self, *args, **kwargs)
+        self.progress_reporter = None
+        self.current_friendly_name = None
+        self.report_progress = lambda x, y: None
+        self.current_serial_num = None
+
+    def reset(self, key='-1', log_packets=False, report_progress=None, detected_device=None):
+        pass
+
+    def set_progress_reporter(self, report_progress):
+        self.report_progress = report_progress
+
+    def get_gui_name(self):
+        return getattr(self, 'current_friendly_name', self.gui_name)
+
+    def is_usb_connected(self, devices_on_system, debug=False, only_presence=False):
+        # We manage device presence ourselves, so this method should always
+        # return False
+        return False
+
+    @property
+    def save_template(self) -> str:
+        raise NotImplementedError
+
+    def filesystem_callback(self, msg: str) -> None:
+        pass
+
+    def is_folder_ignored(self, storage_or_storage_id, path) -> bool:
+        return False
+
+    def build_template_regexp(self):
+        from calibre.devices.utils import build_template_regexp
+
+        return build_template_regexp(self.save_template)
+
+    def is_customizable(self):
+        return True

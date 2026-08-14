@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+# License: GPLv3 Copyright: 2014, Kovid Goyal <kovid at kovidgoyal.net>
+
+from calibre.utils.localization import _
+
+
+def control(func):
+    func.function_type = 'control'
+    return func
+
+
+def data(func):
+    func.function_type = 'data'
+    return func
+
+
+class DataError(Exception):
+    def __init__(self, tb, msg=None):
+        Exception.__init__(self, msg or _('Failed to get completion data'))
+        self.tb = tb
+
+    def traceback(self):
+        return str(self) + '\n' + self.tb

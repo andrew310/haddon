@@ -1,0 +1,90 @@
+# vim:fileencoding=utf-8
+# License: GPL v3 Copyright: 2015, Kovid Goyal <kovid at kovidgoyal.net>
+# globals: ρσ_get_module, self
+from __python__ import hash_literals
+
+import initialize  # noqa: unused-import
+from ajax import ajax, console_print, set_default_timeout, absolute_path
+from autoreload import create_auto_reload_watcher
+from book_list.comments_editor import main as prevent_comments_editor_main_from_being_pruned
+from book_list.globals import main_js
+from book_list.main import main
+from read_book.footnotes import main as prevent_footnotes_main_from_being_pruned
+from read_book.globals import runtime
+from read_book.iframe import main as prevent_iframe_main_from_being_pruned
+
+autoreload_enabled = False
+AUTO_UPDATE_THRESHOLD = 1000  # millisecs
+
+
+@no_prune
+def prevent_pruning():
+    prevent_iframe_main_from_being_pruned()
+    prevent_comments_editor_main_from_being_pruned()
+    prevent_footnotes_main_from_being_pruned()
+
+
+def worker_main(entry_point):
+    m = ρσ_get_module(entry_point)
+    main = m?.main
+    if main:
+        main()
+    else:
+        console.log('worker entry_point ' + entry_point + ' not found')
+
+
+def iframe_main(script):
+    script.parentNode.removeChild(script)  # free up some memory
+    script = undefined
+    m = ρσ_get_module(window.iframe_entry_point)
+    main = m?.main
+    if main:
+        main()
+    else:
+        console.log('iframe entry_point ' + window.iframe_entry_point + ' not found')
+
+
+def toplevel_main():
+    script = document.currentScript or document.scripts[0]
+    main_js(script.textContent)
+    script.parentNode.removeChild(script)  # save some memory
+    script = undefined
+    if window.navigator.serviceWorker:
+        window.navigator.serviceWorker.register(absolute_path('service_worker.js')).catch(
+            def (err):
+                console.error('Service worker registration failed:', err)
+        )
+
+    ajax('ajax-setup', def (end_type, xhr, event):
+        nonlocal autoreload_enabled, print
+        if end_type is 'load':
+            try:
+                data = JSON.parse(xhr.responseText)
+            except:
+                return
+            tim = data.ajax_timeout
+            if not isNaN(tim) and tim > 0:
+                set_default_timeout(tim)
+            port = data.auto_reload_port
+            if not isNaN(port) and port > 0:
+                autoreload_enabled = True
+                create_auto_reload_watcher(port)
+            if data.allow_console_print:
+                print = console_print
+            if data.in_develop_mode:
+                runtime.in_develop_mode = True
+        # we dont care about failure here, we assume defaults. We need this to
+        # load once so that browser does http auth and caches the credentials
+        # for future ajax requests
+        main()
+    ).send()  # We must bypass cache as otherwise we could get stale info
+
+if document?:
+    iframe_script = document.getElementById('bootstrap')
+    if iframe_script:
+        iframe_main(iframe_script)
+    else:
+        toplevel_main()
+elif self?:
+    entry_point = self.location.hash[1:]
+    worker_main(entry_point)

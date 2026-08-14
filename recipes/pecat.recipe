@@ -1,0 +1,68 @@
+# vim:fileencoding=utf-8
+__license__ = 'GPL v3'
+__copyright__ = '2011-2013, Darko Miletic <darko.miletic at gmail.com>'
+'''
+www.pecat.co.rs
+'''
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class Pecat_rs(BasicNewsRecipe):
+    title = 'Печат'
+    __author__ = 'Darko Miletic'
+    description = 'Интернет портал слободне Србије'
+    publisher = 'NAŠ PEČAT A.D. BEOGRAD'
+    oldest_article = 7
+    max_articles_per_feed = 100
+    language = 'sr'
+    encoding = 'utf-8'
+    no_stylesheets = True
+    use_embedded_content = True
+    masthead_url = 'http://www.pecat.co.rs/wp-content/themes/zenko-v1/images/logo.jpg'
+    LOGIN = 'http://www.pecat.co.rs/'
+    remove_empty_feeds = True
+    ignore_duplicate_articles = {'url'}
+    needs_subscription = 'optional'
+    publication_type = 'magazine'
+    extra_css = '''
+                                body{font-family: Arial,Helvetica,sans1,sans-serif}
+                                img{display: block; margin-bottom: 1em; margin-top: 1em}
+                                p{display: block; margin-bottom: 1em; margin-top: 1em}
+                                '''
+
+    conversion_options = {'comment': description, 'tags': 'politika, Srbija', 'publisher': 'Pecat', 'language': language}
+
+    def get_browser(self):
+        br = BasicNewsRecipe.get_browser(self)
+        if self.username is not None and self.password is not None:
+            br.open(self.LOGIN)
+            br.select_form(name='loginform')
+            br['log'] = self.username
+            br['pwd'] = self.password
+            br.submit()
+        return br
+
+    feeds = [
+        ('Уводник', 'http://www.pecat.co.rs/category/uvodnik/feed/'),
+        ('Интервју', 'http://www.pecat.co.rs/category/intervju/feed/'),
+        ('Друштво', 'http://www.pecat.co.rs/category/drustvo/feed/'),
+        ('Регион', 'http://www.pecat.co.rs/category/region/feed/'),
+        ('Свет', 'http://www.pecat.co.rs/category/svet/feed/'),
+        ('Колумне', 'http://www.pecat.co.rs/category/kolumne/feed/'),
+        ('Култура', 'http://www.pecat.co.rs/category/kultura/feed/'),
+        ('Документи', 'http://www.pecat.co.rs/category/dokumenti/feed/'),
+        ('Репортаже', 'http://www.pecat.co.rs/category/reportaze/feed/'),
+        ('Економија', 'http://www.pecat.co.rs/category/ekonomija/feed/'),
+        ('Изјаве', 'http://www.pecat.co.rs/category/izjave/feed/'),
+        ('Преглед', 'http://www.pecat.co.rs/category/pregled/feed/'),
+        ('Сапутници', 'http://www.pecat.co.rs/category/saputnici/feed/'),
+        ('Сатира', 'http://www.pecat.co.rs/category/satira/feed/'),
+        ('Спорт', 'http://www.pecat.co.rs/category/sport/feed/'),
+        ('Павле Ћосић', 'http://www.pecat.co.rs/category/agencijske-vesti-pavle-cosic/feed/'),
+        ('ТВ Коментар', 'http://www.pecat.co.rs/category/tv-komentar/feed/'),
+        ('Вести', 'http://www.pecat.co.rs/category/vesti/feed/'),
+        ('Календар', 'http://www.pecat.co.rs/category/kalendar/feed/'),
+        ('Други Пишу', 'http://www.pecat.co.rs/category/drugi-pisu/feed/'),
+        ('Одбрана и безбедност', 'http://www.pecat.co.rs/category/odbrana-i-bezbednost/feed/'),
+    ]

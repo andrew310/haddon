@@ -1,0 +1,46 @@
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class TheConversation(BasicNewsRecipe):
+    title = 'The Conversation'
+    language = 'en'
+    __author__ = 'Krittika Goyal'
+    oldest_article = 4  # days
+    max_articles_per_feed = 20
+    use_embedded_content = False
+
+    no_stylesheets = True
+    auto_cleanup = False
+
+    keep_only_tags = [
+        # Hero image + figcaption + h1 title + publication date — nested
+        # inside <figure class="magazine"> on theconversation.com.
+        dict(name='figure', attrs={'class': 'magazine'}),
+        # Byline: author name, institutional affiliation, photo.
+        dict(name='section', attrs={'class': 'content-authors'}),
+        # Article body.
+        dict(attrs={'itemprop': 'articleBody'}),
+        # Disclosure statement ("X does not work for, consult, ..." etc).
+        dict(name='section', attrs={'class': 'content-disclosure-statement'}),
+    ]
+
+    remove_tags = [
+        # Mobile-only collapsed byline summary that duplicates author info.
+        dict(attrs={'class': 'content-authors-synopsis'}),
+        dict(attrs={'class': 'content-authors-toggle'}),
+        # JS-injected promo placeholders interspersed in the body.
+        dict(attrs={'class': 'slot'}),
+        dict(attrs={'class': 'inline-promos-skeleton'}),
+    ]
+
+    feeds = [
+        ('All Articles', 'https://theconversation.com/au/articles.atom'),
+        ('Arts + Culture', 'https://theconversation.com/au/arts/articles.atom'),
+        ('Business + Economy', 'https://theconversation.com/au/business/articles.atom'),
+        ('Cities', 'https://theconversation.com/au/cities/articles.atom'),
+        ('Education', 'https://theconversation.com/au/education/articles.atom'),
+        ('Enviroment + Energy', 'https://theconversation.com/au/environment/articles.atom'),
+        ('Health + Medicine', 'https://theconversation.com/au/health/articles.atom'),
+        ('Politics + Society', 'https://theconversation.com/au/politics/articles.atom'),
+        ('Science + Technology', 'https://theconversation.com/au/technology/articles.atom'),
+    ]

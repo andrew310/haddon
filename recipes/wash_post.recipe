@@ -1,0 +1,149 @@
+#!/usr/bin/env python
+# vim:fileencoding=utf-8
+"""
+www.washingtonpost.com
+"""
+
+import json
+
+from html5_parser import parse
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class TheWashingtonPost(BasicNewsRecipe):
+    title = 'The Washington Post'
+    __author__ = 'unkn0wn'
+    description = (
+        'Leading source for news, video and opinion on politics, business, '
+        'world and national news, science, travel, entertainment and more. '
+        'Our local coverage includes reporting on education, crime, weather, '
+        'traffic, real estate, jobs and cars for DC, Maryland and Virginia. '
+        'Offering award-winning opinion writing, entertainment information '
+        'and restaurant reviews.'
+    )
+    publisher = 'The Washington Post Company'
+    category = 'news, politics, USA'
+    oldest_article = 1.2
+    max_articles_per_feed = 200
+    no_stylesheets = True
+    encoding = 'utf8'
+    use_embedded_content = False
+    language = 'en_US'
+    remove_empty_feeds = True
+    resolve_internal_links = True
+    ignore_duplicate_articles = {'url'}
+    masthead_url = 'https://upload.wikimedia.org/wikipedia/commons/9/93/The_Logo_of_The_Washington_Post_Newspaper.svg'
+    publication_type = 'newspaper'
+    remove_attributes = ['style', 'width', 'height']
+
+    recipe_specific_options = {
+        'days': {
+            'short': 'Oldest article to download from this news source. In days ',
+            'long': 'For example, 0.5, gives you articles from the past 12 hours',
+            'default': str(oldest_article),
+        }
+    }
+
+    def __init__(self, *args, **kwargs):
+        BasicNewsRecipe.__init__(self, *args, **kwargs)
+        d = self.recipe_specific_options.get('days')
+        if d and isinstance(d, str):
+            self.oldest_article = float(d)
+
+    extra_css = '''
+        .img { text-align:center; font-size:small; }
+        .auth { font-weight:bold; font-size:small; }
+        .time { font-size:small; color: #202020; }
+        .subt { font-style: italic; }
+    '''
+
+    def get_cover_url(self):
+        soup = self.index_to_soup('https://www.washingtonpost.com/todays_paper/updates/')
+        if img := soup.find('img', attrs={'src': lambda x: x and x.endswith('_FrontPage.png')}):
+            return img['src']
+
+    def get_browser(self, *args, **kwargs):
+        kwargs['user_agent'] = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+        br = BasicNewsRecipe.get_browser(self, *args, **kwargs)
+        br.addheaders += [
+            ('Referer', 'https://www.google.com/'),
+            ('X-Forwarded-For', '66.249.66.1'),
+        ]
+        return br
+
+    # Official feeds: https://www.washingtonpost.com/discussions/2018/10/12/washington-post-rss-feeds/
+    feeds = [
+        ('Politics', 'http://feeds.washingtonpost.com/rss/politics'),
+        ('Opinions', 'http://feeds.washingtonpost.com/rss/opinions'),
+        ('Local', 'http://feeds.washingtonpost.com/rss/local'),
+        ('Sports', 'http://feeds.washingtonpost.com/rss/sports'),
+        ('Technology', 'http://feeds.washingtonpost.com/rss/business/technology'),
+        ('National', 'http://feeds.washingtonpost.com/rss/national'),
+        ('World', 'http://feeds.washingtonpost.com/rss/world'),
+        ('Business', 'http://feeds.washingtonpost.com/rss/business'),
+        ('Lifestyle', 'http://feeds.washingtonpost.com/rss/lifestyle'),
+        ('Entertainment', 'http://feeds.washingtonpost.com/rss/entertainment'),
+        # Undocumented feeds.
+        ('White House', 'http://feeds.washingtonpost.com/rss/politics/whitehouse'),
+        ('Commanders', 'http://feeds.washingtonpost.com/rss/sports/redskins'),
+    ]
+
+    def preprocess_raw_html(self, raw, url):
+        root = parse(raw)
+        if '/interactive/' in url:
+            return (
+                '<html><body><article><h1>' + root.xpath('//h1')[0].text + '</h1><em>'
+                'This article is supposed to be read in a browser.'
+                '</em></article></body></html>'
+            )
+        m = root.xpath('//script[@id="__NEXT_DATA__"]')
+
+        data = json.loads(m[0].text)
+        data = data['props']['pageProps']['globalContent']
+
+        text = data.get('label', {}).get('basic', {}).get('text', '')
+        label = f'<p class="time">{text}</p>' if text else ''
+        title = '<h1>' + data['headlines']['basic'] + '</h1>'
+        subhead = '<p class="subt">' + data['description'].get('basic', '') + '</h3>'
+
+        promo_img = ''
+        if data.get('promo_items', {}).get('basic', {}).get('type', '') == 'image':
+            pi = data['promo_items']['basic']
+            promo_img = '<p><div class="img"><img src="{}"><div>{}</div></div></p>'.format(pi['url'], pi['credits_caption_display'])
+
+        author = ''
+        if 'credits' in data:
+            author = (
+                '<div><span class="auth">'
+                + 'By '
+                + ', '.join(x['name'] for x in data['credits']['by'])
+                + '</span> | <span class="time">'
+                + data['publish_date'][:-14]
+                + '</span></div>'
+            )
+
+        body = ''
+        for x in data['content_elements']:
+            if x['type'] == 'text':
+                body += '<p>' + x['content'] + '</p>'
+            elif x['type'] == 'video':
+                if 'promo_image' in x:
+                    body += '<p><div class="img"><img src="{}"><div>{}</div></div></p>'.format(x['promo_image']['url'], x['description'].get('basic', ''))
+            elif x['type'] == 'image':
+                img_ = '<p><div class="img"><img src="{}"><div>{}</div></div></p>'.format(x['url'], x['credits_caption_display'])
+                if img_ != promo_img:
+                    body += img_
+            elif x['type'] == 'list':
+                body += '<ul>'
+                for li in x['items']:
+                    if li.get('content', '') != '':
+                        body += f'<li>{li["content"]}</li>'
+                body += '</ul>'
+
+        return '<html><body><div>' + label + title + subhead + promo_img + author + body + '</div></body></html>'
+
+    def preprocess_html(self, soup):
+        for img in soup.findAll('img', attrs={'src': True}):
+            img['src'] = 'https://www.washingtonpost.com/wp-apps/imrs.php?src=' + img['src'] + '&w=600'
+        return soup

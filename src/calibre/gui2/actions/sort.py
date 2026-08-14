@@ -1,0 +1,222 @@
+#!/usr/bin/env python
+# License: GPLv3 Copyright: 2013, Kovid Goyal <kovid at kovidgoyal.net>
+
+from collections import Counter
+from contextlib import suppress
+from functools import partial
+
+from qt.core import (
+    QAbstractItemView,
+    QAction,
+    QDialog,
+    QDialogButtonBox,
+    QIcon,
+    QListWidget,
+    QListWidgetItem,
+    QMenu,
+    QSize,
+    Qt,
+    QToolButton,
+    QVBoxLayout,
+    pyqtSignal,
+)
+
+from calibre.gui2.actions import InterfaceAction, show_menu_under_widget
+from calibre.library.field_metadata import category_icon_map
+from calibre.utils.icu import primary_sort_key
+from calibre.utils.localization import _
+
+SORT_HIDDEN_PREF = 'sort-action-hidden-fields'
+
+
+def hidden_fields(db):
+    return frozenset(db.new_api.pref(SORT_HIDDEN_PREF, default=()) or ())
+
+
+def get_sorted_fields(db):
+    fm = db.field_metadata
+    name_map = [(v, k) for k, v in fm.ui_sortable_field_keys().items()]
+    counts = Counter(name for name, _ in name_map)
+    name_map = [(f'{name} [{key}]' if counts[name] > 1 else name, key) for name, key in name_map]
+    return sorted(name_map, key=lambda x: primary_sort_key(x[0]))
+
+
+class SortAction(QAction):
+    sort_requested = pyqtSignal(object, object)
+
+    def __init__(self, text, key, ascending, parent):
+        QAction.__init__(self, text, parent)
+        self.key, self.ascending = key, ascending
+        self.triggered.connect(self)
+        ic = category_icon_map['custom:'] if self.key.startswith('#') else category_icon_map.get(key)
+        if ic:
+            self.setIcon(QIcon.ic(ic))
+
+    def __call__(self):
+        self.sort_requested.emit(self.key, self.ascending)
+
+
+class SortByAction(InterfaceAction):
+    name = 'Sort By'
+    action_spec = (_('Sort by'), 'sort.png', _('Sort the list of books'), None)
+    action_type = 'current'
+    popup_type = QToolButton.ToolButtonPopupMode.InstantPopup
+    action_add_menu = True
+    dont_add_to = frozenset(('context-menu-cover-browser',))
+
+    def genesis(self):
+        self.sorted_icon = QIcon.ic('ok.png')
+        self.menu = m = self.qaction.menu()
+        assert m is not None
+        m.aboutToShow.connect(self.about_to_show_menu)
+        # self.qaction.triggered.connect(self.show_menu)
+
+        # Create a "hidden" menu that can have a shortcut. This also lets us
+        # manually show the menu instead of letting Qt do it to work around a
+        # problem where Qt can show the menu on the wrong screen.
+        self.hidden_menu = QMenu()
+        self.shortcut_action = self.create_menu_action(
+            menu=self.hidden_menu,
+            unique_name=_('Sort by'),
+            text=_('Show the Sort by menu'),
+            icon=None,
+            shortcut='Ctrl+F5',
+            triggered=self.show_menu,
+        )
+
+        def c(attr, title, tooltip, callback, keys=()):
+            ac = self.create_action(spec=(title, None, tooltip, keys), attr=attr)
+            ac.triggered.connect(callback)
+            self.gui.addAction(ac)
+            return ac
+
+        self.reverse_action = c(
+            'reverse_sort_action',
+            _('Reverse current sort'),
+            _('Reverse the current sort order'),
+            self.reverse_sort,
+            'shift+f5',
+        )
+        self.reapply_action = c('reapply_sort_action', _('Re-apply current sort'), _('Re-apply the current sort'), self.reapply_sort, 'f5')
+
+    def about_to_show_menu(self):
+        self.update_menu()
+
+    def show_menu(self):
+        show_menu_under_widget(self.gui, self.qaction.menu(), self.qaction, self.name)
+
+    def reverse_sort(self):
+        self.gui.current_view().reverse_sort()
+
+    def reapply_sort(self):
+        self.gui.current_view().resort()
+
+    def location_selected(self, loc):
+        enabled = loc == 'library'
+        self.qaction.setEnabled(enabled)
+        self.menuless_qaction.setEnabled(enabled)
+
+    def library_changed(self, db):
+        self.update_menu()
+
+    def initialization_complete(self):
+        self.update_menu()
+
+    def get_sorted_fields(self):
+        return get_sorted_fields(self.gui.current_db)
+
+    def update_menu(self, menu=None):
+        if menu is None:
+            menu = self.qaction.menu()
+        assert menu is not None
+        for action in menu.actions():
+            if hasattr(action, 'sort_requested'):
+                action.sort_requested.disconnect()
+                with suppress(TypeError):
+                    action.toggled.disconnect()
+
+        menu.clear()
+        m = self.gui.library_view.model()
+        db = self.gui.current_db
+
+        # Use these actions so we get the shortcut(s) displayed
+        menu.addAction(self.reapply_action)
+        menu.addAction(self.reverse_action)
+        menu.addSeparator()
+
+        # Add saved sorts to the menu
+        saved_sorts = db.new_api.pref('saved_multisort_specs', {})
+        if saved_sorts:
+            for name in sorted(saved_sorts.keys(), key=primary_sort_key):
+                menu.addAction(name, partial(self.named_sort_selected, saved_sorts[name]))
+            menu.addSeparator()
+
+        # Note the current sort column so it can be specially handled below
+        try:
+            sort_col = m.sorted_on[0]
+        except TypeError:
+            sort_col = 'date'
+
+        # The operations to choose which columns to display and to create saved sorts
+        menu.addAction(_('Select sortable columns')).triggered.connect(self.select_sortable_columns)
+        menu.addAction(_('Sort on multiple columns'), self.choose_multisort)
+        menu.addSeparator()
+
+        # Add the columns to the menu
+        hidden = hidden_fields(self.gui.current_db)
+
+        for name, key in self.get_sorted_fields():
+            if key == 'ondevice' and self.gui.device_connected is None:
+                continue
+            if key in hidden:
+                continue
+            sac = SortAction(name, key, None, menu)
+            if key == sort_col:
+                sac.setIcon(self.sorted_icon)
+            sac.sort_requested.connect(self.sort_requested)
+            menu.addAction(sac)
+
+    def select_sortable_columns(self):
+        db = self.gui.current_db
+        hidden = hidden_fields(db)
+        items = QListWidget()
+        items.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
+        for display_name, key in self.get_sorted_fields():
+            i = QListWidgetItem(display_name, items)
+            i.setData(Qt.ItemDataRole.UserRole, key)
+            i.setSelected(key not in hidden)
+        d = QDialog(self.gui)
+        l = QVBoxLayout(d)
+        l.addWidget(items)
+        d.setWindowTitle(_('Select sortable columns'))
+        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        bb.accepted.connect(d.accept)
+        bb.rejected.connect(d.reject)
+        l.addWidget(bb)
+        d.resize(d.sizeHint() + QSize(50, 100))
+        if d.exec() == QDialog.DialogCode.Accepted:
+            hidden = []
+            for x in range(items.count()):
+                i = items.item(x)
+                assert i is not None
+                if not i.isSelected():
+                    hidden.append(i.data(Qt.ItemDataRole.UserRole))
+            db.new_api.set_pref(SORT_HIDDEN_PREF, tuple(hidden))
+            self.update_menu()
+
+    def named_sort_selected(self, sort_spec):
+        self.gui.library_view.multisort(sort_spec)
+
+    def choose_multisort(self):
+        from calibre.gui2.dialogs.multisort import ChooseMultiSort
+
+        d = ChooseMultiSort(self.gui.current_db, parent=self.gui, is_device_connected=self.gui.device_connected)
+        if d.exec() == QDialog.DialogCode.Accepted:
+            self.gui.library_view.multisort(d.current_sort_spec)
+            self.update_menu()
+
+    def sort_requested(self, key, ascending):
+        if ascending is None:
+            self.gui.library_view.intelligent_sort(key, True)
+        else:
+            self.gui.library_view.sort_by_named_field(key, ascending)

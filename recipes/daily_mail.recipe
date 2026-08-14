@@ -1,0 +1,50 @@
+#!/usr/bin/env python
+# vim:fileencoding=utf-8
+# License: GPLv3 Copyright: 2016, Kovid Goyal <kovid at kovidgoyal.net>
+
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+from calibre.web.feeds.news import BasicNewsRecipe, classes, prefixed_classes
+
+
+class TheDailyMail(BasicNewsRecipe):
+    title = 'The Daily Mail'
+    language = 'en_GB'
+    __author__ = 'Kovid Goyal'
+
+    use_embedded_content = False
+    oldest_article = 2
+    max_articles_per_feed = 20
+
+    compress_news_images = True
+    compress_news_images_auto_size = 8
+    no_stylesheets = True
+
+    simultaneous_downloads = 1
+    # delay = 2
+    # browser_type = 'webengine'
+
+    keep_only_tags = [
+        prefixed_classes('headline--'),
+        classes('article-page-headline author-section byline-section'),
+        dict(itemprop='articleBody'),
+    ]
+    remove_tags = [classes('related-carousel'), dict(attrs={'data-mol-fe-xpmodule-join-debate': True})]
+
+    feeds = [
+        ('Home', 'https://www.dailymail.co.uk/home/index.rss'),
+        ('News', 'https://www.dailymail.co.uk/news/index.rss'),
+        ('Sport', 'https://www.dailymail.co.uk/sport/index.rss'),
+        ('TV and Showbiz', 'https://www.dailymail.co.uk/tvshowbiz/index.rss'),
+        ('Health', 'https://www.dailymail.co.uk/health/index.rss'),
+        ('Science and Technology', 'https://www.dailymail.co.uk/sciencetech/index.rss'),
+        ('Money', 'https://www.dailymail.co.uk/money/index.rss'),
+        ('Property', 'https://www.dailymail.co.uk/property/index.rss'),
+        ('Motoring', 'https://www.dailymail.co.uk/motoring/index.rss'),
+        ('Travel', 'https://www.dailymail.co.uk/travel/index.rss'),
+    ]
+
+    def preprocess_html(self, soup):
+        for img in soup.findAll(attrs={'data-src': True}):
+            img['src'] = img['data-src']
+        return soup

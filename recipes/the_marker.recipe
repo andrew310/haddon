@@ -1,0 +1,53 @@
+import re
+
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class AdvancedUserRecipe1283848012(BasicNewsRecipe):
+    description = 'TheMarker Financial News in Hebrew'
+    __author__ = 'Marbs'
+    cover_url = 'http://static.ispot.co.il/wp-content/upload/2009/09/themarker.jpg'
+    title = 'TheMarker'
+    language = 'he'
+    simultaneous_downloads = 5
+    remove_javascript = True
+    timefmt = '[%a, %d %b, %Y]'
+    oldest_article = 1
+    keep_only_tags = dict(name='div', attrs={'id': 'content'})
+    remove_attributes = ['width', 'float', 'margin-left']
+    no_stylesheets = True
+    remove_tags = [
+        dict(name='div', attrs={'class': ['social-nav article-social-nav', 'prsnlArticleEnvelope', 'cb']}),
+        dict(name='a', attrs={'href': ['/misc/mobile']}),
+        dict(name='span', attrs={'class': ['post-summ']}),
+    ]
+    max_articles_per_feed = 100
+    extra_css = 'body{direction: rtl;} .article_description{direction: rtl; } a.article{direction: rtl; } .calibre_feed_description{direction: rtl; }'
+    feeds = [
+        ('Head Lines', 'http://www.themarker.com/cmlink/1.144'),
+        ('TA Market', 'http://www.themarker.com/cmlink/1.243'),
+        ('Real Estate', 'http://www.themarker.com/cmlink/1.605656'),
+        ('Global', 'http://www.themarker.com/cmlink/1.605658'),
+        ('Wall Street', 'http://www.themarker.com/cmlink/1.613713'),
+        ('SmartPhone', 'http://www.themarker.com/cmlink/1.605661'),
+        ('Law', 'http://www.themarker.com/cmlink/1.605664'),
+        ('Media', 'http://www.themarker.com/cmlink/1.605660'),
+        ('Consumer', 'http://www.themarker.com/cmlink/1.605662'),
+        ('Career', 'http://www.themarker.com/cmlink/1.605665'),
+        ('Car', 'http://www.themarker.com/cmlink/1.605663'),
+        ('High Tech', 'http://www.themarker.com/cmlink/1.605659'),
+        ('Small Business', 'http://www.themarker.com/cmlink/1.605666'),
+    ]
+
+    def print_version(self, url):
+        # print_url='http://www.themarker.com/misc/article-print-page/'+split1[-1]
+        txt = url
+
+        re1 = '.*?'  # Non-greedy match on filler
+        re2 = '(tv)'  # Word 1
+
+        rg = re.compile(re1 + re2, re.IGNORECASE | re.DOTALL)
+        m = rg.search(txt)
+        if m:
+            # print('bad link')
+            return 1

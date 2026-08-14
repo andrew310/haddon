@@ -1,0 +1,68 @@
+from datetime import date
+
+from calibre.web.feeds.news import BasicNewsRecipe, classes
+
+# default edition is Delhi i.e., 'cap'
+# Hyderabad - 'toih'; Delhi - 'cap'; Mumbai - 'toim'; Banglore - 'toibgc';
+# Chennai - 'toich'; Chandigarh - 'toicgct'; Jaipur - 'toijc'; Kolkata - 'toikc';
+# There are others too, try to figure it out, visit toi epaper link.
+
+le = 'cap'  # local edition;
+
+date0 = date.today().strftime('%Y/%m/%d')
+
+# for older edition change date0 below.
+# date0 = '2023/09/15'
+
+year, month, day = (int(x) for x in date0.split('/'))
+dt = date(year, month, day)
+date_ = dt.strftime('%d_%m_%Y')
+
+img_index = 'https://cmsimages.timesgroup.com/image-resizer?epaper_s3_path=PublicationData/TOI/' + le + '/' + date0
+
+
+class TOIPring(BasicNewsRecipe):
+    title = 'TOI Print Edition'
+    language = 'en_IN'
+    __author__ = 'Kovid Goyal'
+    masthead_url = 'https://static.toiimg.com/photo/98333929.cms'
+    timefmt = ' [' + dt.strftime('%b %d, %Y') + ']'
+    description = 'Articles from the Times of India epaper, digital edition'
+    encoding = 'utf-8'
+    remove_empty_feeds = True
+
+    keep_only_tags = [classes('printeditioncontentwrapper')]
+    remove_tags = [
+        classes('header-container popupWrapper footer_wrapper icon_share_wrap'),
+        {'id': 'blocker'},
+        {'name': 'style'},
+    ]
+
+    extra_css = '''
+        .sub { color:#202020; }
+        .auth { font-size:small; font-weight:bold; color:#202020; }
+        .cap { text-align:center; font-size:small; }
+        img { display:block; margin:0 auto; }
+        .info { font-size:small; color:#404040; }
+        .lead { color:#404040; }
+    '''
+
+    def parse_index(self):
+        url = 'https://epaper.indiatimes.com/english-news-paper-today-toi-print-edition/'
+        # url = 'file:///t/raw.html'
+        soup = self.index_to_soup(url)
+        ans = []
+        for sec in soup.find_all('section', attrs={'data-content': True}):
+            h1 = sec.find('h1')
+            section = self.tag_to_string(h1)
+            self.log(section)
+            articles = []
+            listing = sec.find_next_sibling(type='listing')
+            for a in listing.find_all('a', href=True):
+                url = a['href']
+                title = self.tag_to_string(a.find('h2'))
+                self.log(' ', title)
+                articles.append({'title': title, 'url': url})
+            if articles:
+                ans.append((section, articles))
+        return ans

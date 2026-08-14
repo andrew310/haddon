@@ -1,0 +1,91 @@
+#!/usr/bin/env python
+__license__ = 'GPL v3'
+__author__ = 'Gabriele Marini, based on Darko Miletic'
+__copyright__ = '2009, Darko Miletic <darko.miletic at gmail.com>'
+__description__ = 'La Stampa 28/12/2012'
+
+'''
+http://www.lastampa.it/
+'''
+from calibre.web.feeds.news import BasicNewsRecipe
+
+
+class LaStampa(BasicNewsRecipe):
+    title = 'La Stampa'
+    language = 'it'
+    __author__ = 'Gabriele Marini'
+    oldest_articlce = 7  # for daily schedule
+    max_articles_per_feed = 50
+    recursion = 100
+    cover_url = 'http://www1.lastampa.it/edicola/PDF/1.pdf'
+    use_embedded_content = False
+    remove_javascript = True
+    no_stylesheets = True
+
+    conversion_options = {'linearize_tables': True}
+    remove_attributes = ['colspan']
+
+    extra_css = ' .boxocchiello2{font-size: small} .catenaccio{font-style: italic} .titoloRub{font-size: xx-large; font-weight: bold } .titologir{font-size: xx-large; font-weight: bold } .sezione{font-weight: bold} '  # noqa: E501
+
+    def get_article_url(self, article):
+        link = article.get('links')
+        if link:
+            return link[0]['href']
+
+    keep_only_tags = [
+        dict(
+            attrs={
+                'class': [
+                    'boxocchiello2',
+                    'titoloRub',
+                    'titologir',
+                    'autore-girata',
+                    'luogo-girata',
+                    'catenaccio',
+                    'sezione',
+                    'articologirata',
+                    'bodytext',
+                    'news-single-img',
+                    'ls-articoloCorpo',
+                    'ls-blog-list-1col',
+                ]
+            }
+        ),  # noqa: E501
+        dict(name='div', attrs={'id': 'corpoarticolo'}),
+    ]
+
+    remove_tags = [
+        dict(name='div', attrs={'id': ['menutop', 'fwnetblocco']}),
+        dict(attrs={'class': ['ls-toolbarCommenti', 'ls-boxCommentsBlog']}),
+        dict(name='table', attrs={'id': ['strumenti', 'imgesterna']}),
+        dict(name='a', attrs={'class': ['linkblu', 'link']}),
+        dict(name='span', attrs={'class': ['boxocchiello', 'boxocchiello2', 'sezione']}),
+    ]
+    feeds = [
+        ('BuonGiorno', 'http://www.lastampa.it/cultura/opinioni/buongiorno/rss.xml'),
+        ('Jena', 'http://www.lastampa.it/cultura/opinioni/jena/rss.xml'),
+        ('Editoriali', 'http://www.lastampa.it/cultura/opinioni/editoriali'),
+        ('Finestra sull America', 'http://lastampa.feedsportal.com/c/32418/f/625713/index.rss'),
+        ('HomePage', 'http://www.lastampa.it/rss.xml'),
+        ('Politica Italia', 'http://www.lastampa.it/italia/politica/rss.xml'),
+        ('ArciItaliana', 'http://www.lastampa.it/rss/blog/arcitaliana'),
+        ('Cronache', 'http://www.lastampa.it/italia/cronache/rss.xml'),
+        ('Esteri', 'http://www.lastampa.it/esteri/rss.xml'),
+        ('Danni Collaterali', 'http://www.lastampa.it/rss/blog/danni-collaterali'),
+        ('Economia', 'http://www.lastampa.it/economia/rss.xml'),
+        ('Tecnologia ', 'http://www.lastampa.it/tecnologia/rss.xml'),
+        ('Spettacoli', 'http://www.lastampa.it/spettacoli/rss.xml'),
+        ('Sport', 'http://www.lastampa.it/sport/rss.xml'),
+        ('Torino', 'http://www.lastampa.it/cronaca/rss.xml'),
+        ('Motori', 'http://www.lastampa.it/motori/rss.xml'),
+        ('Scienza', 'http://www.lastampa.it/scienza/rss.xml'),
+        ('Cultura', 'http://www.lastampa.it/cultura/rss.xml'),
+        ('Scuola', 'http://www.lastampa.it/cultura/scuola/rss.xml'),
+        ('Benessere', 'http://www.lastampa.it/scienza/benessere/rss.xml'),
+        ('Cucina', 'http://www.lastampa.it/societa/cucina/rss.xml'),
+        ('Casa', 'http://www.lastampa.it/societa/casa/rss.xml'),
+        ('Moda', 'http://www.lastampa.it/societa/moda/rss.xml'),
+        ('Giochi', 'http://www.lastampa.it/tecnologia/giochi/rss.xml'),
+        ('Viaggi', 'http://www.lastampa.it/societa/viaggi/rss.xml'),
+        ('Ambiente', 'http://www.lastampa.it/scienza/ambiente/rss.xml'),
+    ]
