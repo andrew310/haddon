@@ -1,0 +1,18 @@
+{
+  "ltr": {
+    "disabled": [],
+    "added": []
+  },
+  "rtl": {
+    "disabled": ["bodyHyphens", "a11yNormalize", "letterSpacing"],
+    "added": []
+  },
+  "cjk-horizontal": {
+    "disabled": ["textAlign", "bodyHyphens", "a11yNormalize", "ligatures", "paraIndent", "wordSpacing"],
+    "added": ["noRuby"]
+  },
+  "cjk-vertical": {
+    "disabled": ["colCount", "textAlign", "bodyHyphens", "a11yNormalize", "ligatures", "paraIndent", "wordSpacing"],
+    "added": ["noRuby"]
+  }
+}

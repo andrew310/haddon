@@ -1,0 +1,102 @@
+/* Readium CSS
+   Pagination module
+
+   A set of styles to paginate ePublications
+
+   Repo: https://github.com/readium/css */
+
+/* Config */
+
+/* Columns are responsive by default, even if column-width is set in pixels,
+   which means two-page spread will switch to single page depending on current font-size.
+   If you want more control, I’m afraid you’ll have to update colWidth/colGap dynamically,
+   which is how a significant amount of RS do at the moment. */
+
+/* Default for smartphone portrait (small screens) */
+:root {
+  @import-json "../../vars/pagination.json";
+}
+
+/* Reset page margins for Forward compatibility */
+@page {
+  margin: 0 !important;
+}
+
+/* :root selector has same specificity as a class i.e. 0010
+   We might have to change that to html / context
+   -> https://css-tricks.com/almanac/selectors/r/root/ */
+:root {
+  /* Prevents options pop-up when long tap in webkit */
+  -webkit-touch-callout: none;
+
+  /* Column size will depend on this if we want to make it responsive
+     We have to use rem because zoom won’t work properly on Firefox 
+     if it is set in percentage or em… */
+  font-size: 1rem !important;
+
+  /* In case you use left position to scroll, can be removed if using transform: translateX() */
+  position: relative;
+
+  /* Switch to newer box model (not inherited by authors’ styles) */
+  box-sizing: border-box;
+  min-width: var(--RS__viewportWidth);
+  width: var(--RS__viewportWidth);
+  max-width: var(--RS__viewportWidth);
+  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0 !important;
+  padding: 0 !important;
+
+  /* Init pagination */
+  /* TODO: document columns’ logic cos it might feel weird at first */
+  -webkit-column-count: var(--RS__colCount);
+  -moz-column-count: var(--RS__colCount);
+  column-count: var(--RS__colCount);
+
+  -webkit-column-width: var(--RS__colWidth);
+  -moz-column-width: var(--RS__colWidth);
+  column-width: var(--RS__colWidth);
+
+  -webkit-column-gap: var(--RS__colGap);
+  -moz-column-gap: var(--RS__colGap);
+  column-gap: var(--RS__colGap);
+
+  /* Default is balance and we want columns to be filled entirely (100vh) */
+  -moz-column-fill: auto;
+  column-fill: auto;
+}
+
+body {
+  width: 100%;
+
+  /* Limit line-length but we have to reset when 2 columns and control the viewport.
+     By using max-width + margin auto, margins will shrink when font-size increases,
+     which is what would be expected in terms of typography. */
+  max-width: var(--RS__defaultLineLength) !important;
+  margin: 0 auto !important;
+
+  /* We need a minimum padding on body so that descandants/ascendants in italic/script are not cut-off.
+     Drawback: we have to use border-box so that it doesn’t screw the box model,
+     which means it impacts colWidth and max-width */
+  box-sizing: border-box;
+}
+
+:root:not(:--scroll-view) body {
+  padding: 0 var(--RS__pageGutter) !important;
+}
+
+:root:not(:--no-overflow) body {
+  overflow: hidden;
+}
+
+@supports (overflow: clip) {
+   :root:not(:--no-overflow) {
+      overflow: clip;
+   }
+
+   :root:not(:--no-overflow) body {
+      overflow: clip;
+      overflow-clip-margin: content-box;
+   }
+}
