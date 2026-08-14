@@ -1,0 +1,17 @@
+diff -urBbN CMakeLists.txt.orig CMakeLists.txt > 01-cmake-static-only-no-install.patch
+--- a/CMakeLists.txt.orig	2026-02-17 12:47:06.000000000 +0000
++++ b/CMakeLists.txt	2026-07-17 18:24:10.118275500 +0100
+@@ -19,10 +19,10 @@
+ # configuration
+ # ============================================================================
+ 
+-option(ZLIB_BUILD_TESTING "Enable Zlib Examples as tests" ON)
+-option(ZLIB_BUILD_SHARED "Enable building zlib shared library" ON)
++option(ZLIB_BUILD_TESTING "Enable Zlib Examples as tests" OFF)
++option(ZLIB_BUILD_SHARED "Enable building zlib shared library" OFF)
+ option(ZLIB_BUILD_STATIC "Enable building zlib static library" ON)
+-option(ZLIB_INSTALL "Enable installation of zlib" ON)
++option(ZLIB_INSTALL "Enable installation of zlib" OFF)
+ option(ZLIB_PREFIX "prefix for all types and library functions, see zconf.h.in"
+        OFF)
+ mark_as_advanced(ZLIB_PREFIX)

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:orientation="vertical" android:id="@+id/LinearLayout01" android:layout_height="fill_parent" android:layout_width="fill_parent">
+	<LinearLayout android:layout_width="fill_parent" android:id="@+id/LinearLayout02"
+	    android:layout_margin="4dip"
+		android:layout_height="wrap_content">
+		<ImageView android:layout_width="wrap_content" android:layout_height="wrap_content" 
+	        android:layout_margin="8dip"
+			android:id="@+id/logo" 
+			android:src="@mipmap/cr3_logo" android:layout_gravity="center_vertical|left">
+		</ImageView>
+		<LinearLayout android:orientation="vertical" android:id="@+id/LinearLayout03" android:layout_height="wrap_content" android:layout_width="fill_parent">
+			<TextView android:text="Cool Reader 3.1" android:id="@+id/version" android:layout_width="fill_parent" 
+	            style="@style/TextAppearance.Medium"
+		        android:gravity="left"
+		        android:layout_margin="4dip"
+				android:layout_height="wrap_content">
+			</TextView>
+			<TextView android:text="@string/dlg_about_copyright" android:id="@+id/copyright"
+		            style="@style/TextAppearance.Medium"
+                    android:gravity="left"
+					android:layout_margin="4dip" 
+					android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+			<TextView android:text="@string/dlg_about_contributors_" android:id="@+id/copyright2"
+					  style="@style/TextAppearance.Medium"
+					  android:gravity="left"
+					  android:layout_margin="4dip"
+					  android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+		</LinearLayout>
+	</LinearLayout>
+	<ScrollView
+		android:layout_width="fill_parent"
+		android:layout_height="wrap_content">
+		<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+			<TextView android:text="coolreader.org@gmail.com" android:id="@+id/email"
+            	style="@style/TextAppearance.Medium"
+				android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:autoLink="email"/>
+			<TextView android:text="http://www.coolreader.org/" android:id="@+id/www"
+            	style="@style/TextAppearance.Medium"
+				android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:autoLink="web"/>
+			<TextView android:text="http://sourceforge.net/projects/crengine" android:id="@+id/sourceforge"
+            	style="@style/TextAppearance.Medium"
+				android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:autoLink="web"/>
+			<TextView android:text="https://github.com/buggins/coolreader/" android:id="@+id/www1"
+				style="@style/TextAppearance.Medium"
+				android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:autoLink="web"/>
+			<TextView android:text="@string/third_party_components_used"
+				android:id="@+id/thirdparty"
+            	style="@style/TextAppearance.Small"
+				android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+			<TextView android:text="@string/third_party_hyphenations1_used"
+					android:id="@+id/thirdparty6"
+					style="@style/TextAppearance.Small"
+					android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+			<TextView android:text="@string/third_party_hyphenations2_used"
+					android:id="@+id/thirdparty7"
+					style="@style/TextAppearance.Small"
+					android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+			<TextView android:text="@string/fontconfig_language_orthography_database"
+					  android:id="@+id/thirdparty2"
+					  style="@style/TextAppearance.Small"
+					  android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+			<TextView android:text="@string/third_party_farm_fresh_icon_set"
+            	android:id="@+id/thirdparty3"
+            	style="@style/TextAppearance.Small"
+            	android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+			<TextView android:text="@string/third_party_tango_mod_icon_set"
+					android:id="@+id/thirdparty4"
+					style="@style/TextAppearance.Small"
+					android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+			<TextView android:text="CoffeeCatch> library: https://github.com/xroche/coffeecatch"
+            	android:id="@+id/thirdparty5"
+            	style="@style/TextAppearance.Small"
+            	android:layout_margin="4dip" android:layout_width="fill_parent" android:layout_height="wrap_content"/>
+		</LinearLayout>
+	</ScrollView>
+</LinearLayout>

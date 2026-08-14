@@ -1,0 +1,14 @@
+
+# For cmake project files.
+# See <top_srcdir>/CMakeLists.txt
+#     <top_srcdir>/android/app/CMakeLists.txt
+
+set(REPO_FREETYPE_SRCDIR "freetype-2.14.3")
+set(REPO_FRIBIDI_SRCDIR "fribidi-1.0.16")
+set(REPO_HARFBUZZ_SRCDIR "harfbuzz-14.2.1")
+set(REPO_LIBJPEG_SRCDIR "jpeg-10")
+set(REPO_LIBPNG_SRCDIR "libpng-1.6.58")
+set(REPO_LIBUNIBREAK_SRCDIR "libunibreak-7.0")
+set(REPO_ZLIB_SRCDIR "zlib-1.3.2")
+set(REPO_ZSTD_SRCDIR "zstd-1.5.7")
+set(REPO_UTF8PROC_SRCDIR "utf8proc-2.11.3")
