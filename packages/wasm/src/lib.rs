@@ -1,3 +1,6 @@
+mod publication_session;
+pub use publication_session::PublicationSession;
+
 use cosmic_text::FontSystem;
 use haddon_core::epub::parse_epub;
 use haddon_core::layout::{
@@ -31,6 +34,35 @@ struct SelectionRange {
     page_index: usize,
     anchor: DocumentPoint,
     focus: DocumentPoint,
+}
+
+#[wasm_bindgen]
+pub struct RenderTheme {
+    bg: String,
+    text: String,
+    superscript: String,
+    highlight: String,
+    selection: String,
+}
+
+#[wasm_bindgen]
+impl RenderTheme {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        bg: &str,
+        text: &str,
+        superscript: &str,
+        highlight: &str,
+        selection: &str,
+    ) -> RenderTheme {
+        RenderTheme {
+            bg: bg.to_string(),
+            text: text.to_string(),
+            superscript: superscript.to_string(),
+            highlight: highlight.to_string(),
+            selection: selection.to_string(),
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -77,6 +109,7 @@ impl EpubReader {
         canvas: &HtmlCanvasElement,
         page_index: usize,
         scale: f64,
+        theme: &RenderTheme,
     ) -> Result<(), JsValue> {
         let page = self
             .layout
@@ -89,6 +122,7 @@ impl EpubReader {
             scale,
             &self.highlights,
             self.normalized_selection().as_ref(),
+            theme,
         )
     }
 
@@ -362,6 +396,7 @@ fn render_page_to_canvas(
     scale: f64,
     highlights: &[DocumentRange],
     selection: Option<&NormalizedSelection>,
+    theme: &RenderTheme,
 ) -> Result<(), JsValue> {
     canvas.set_width((page.width as f64 * scale) as u32);
     canvas.set_height((page.height as f64 * scale) as u32);
@@ -372,7 +407,7 @@ fn render_page_to_canvas(
         .dyn_into()?;
 
     // White background
-    ctx.set_fill_style_str("white");
+    ctx.set_fill_style_str(&theme.bg);
     ctx.fill_rect(
         0.0,
         0.0,
@@ -383,7 +418,7 @@ fn render_page_to_canvas(
     ctx.save();
     ctx.scale(scale, scale)?;
 
-    ctx.set_fill_style_str("rgba(255, 215, 80, 0.34)");
+    ctx.set_fill_style_str(&theme.highlight);
     for highlight in highlights {
         if page_contains_range(page, highlight) {
             for line in &page.lines {
@@ -396,7 +431,7 @@ fn render_page_to_canvas(
 
     if let Some(selection) = selection {
         if page_contains_range(page, &selection.range) {
-            ctx.set_fill_style_str("rgba(80, 140, 255, 0.28)");
+            ctx.set_fill_style_str(&theme.selection);
             for line in &page.lines {
                 for (x, width) in highlight_segments_for_line(line, &selection.range) {
                     ctx.fill_rect(x as f64, line.y as f64, width as f64, line.height as f64);
@@ -406,7 +441,7 @@ fn render_page_to_canvas(
     }
 
     // Render text
-    ctx.set_fill_style_str("#333333");
+    ctx.set_fill_style_str(&theme.text);
 
     for line in &page.lines {
         for frag in &line.fragments {
@@ -429,9 +464,9 @@ fn render_page_to_canvas(
 
             ctx.set_font(&font);
             if frag.superscript {
-                ctx.set_fill_style_str("#6688cc");
+                ctx.set_fill_style_str(&theme.superscript);
             } else {
-                ctx.set_fill_style_str("#333333");
+                ctx.set_fill_style_str(&theme.text);
             }
             ctx.fill_text(&frag.text, frag.x as f64, frag.y as f64 + y_offset)?;
         }

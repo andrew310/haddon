@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title">
+  <title id="title">Compass rose</title>
+  <circle cx="60" cy="60" r="52" fill="#e9f3ff" stroke="#244c7a" stroke-width="4"/>
+  <path d="M60 14 72 60 60 106 48 60Z" fill="#3978c5"/>
+  <circle cx="60" cy="60" r="6" fill="#172033"/>
+</svg>

@@ -6,12 +6,22 @@ import {
   shift,
   useFloating,
 } from "@floating-ui/react";
+import SemanticReader from "./SemanticReader";
+import {
+  MOON_QUOTE,
+  citationHref,
+  isSampleHref,
+  searchToCitation,
+} from "./citationLink";
 import "./App.css";
 
 let wasmModule: typeof import("../../../packages/wasm/pkg/haddon_wasm") | null =
   null;
 type EpubReaderType = InstanceType<
   NonNullable<typeof wasmModule>["EpubReader"]
+>;
+type PublicationSessionType = InstanceType<
+  NonNullable<typeof wasmModule>["PublicationSession"]
 >;
 
 async function getWasm() {
@@ -60,8 +70,44 @@ type NoteAnchor = {
 };
 const HIGHLIGHT_STORAGE_PREFIX = "haddon:highlights:";
 
+type Theme = "light" | "dark";
+
+const THEME_STORAGE_KEY = "haddon:theme";
+
+const THEMES = {
+  light: {
+    bg: "#ffffff",
+    text: "#333333",
+    superscript: "#5577bb",
+    highlight: "rgba(255, 215, 80, 0.34)",
+    selection: "rgba(80, 140, 255, 0.28)",
+  },
+  dark: {
+    bg: "#1a1a1a",
+    text: "#d4d4d4",
+    superscript: "#8aa7ff",
+    highlight: "rgba(255, 185, 50, 0.30)",
+    selection: "rgba(100, 160, 255, 0.32)",
+  },
+} as const;
+
+function getInitialTheme(): Theme {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 export default function App() {
   const [reader, setReader] = useState<EpubReaderType | null>(null);
+  const [session, setSession] = useState<PublicationSessionType | null>(null);
+  const sessionRef = useRef<PublicationSessionType | null>(null);
+  const [pendingCitation, setPendingCitation] = useState(() =>
+    searchToCitation(new URLSearchParams(window.location.search)),
+  );
+  const [bookSource, setBookSource] = useState<"fixture" | "upload" | null>(
+    null,
+  );
+  const autoOpenedRef = useRef(false);
   const [pageCount, setPageCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
   const [viewMode, setViewMode] = useState<ViewMode>("scroll");
@@ -75,6 +121,7 @@ export default function App() {
     null
   );
   const [savedHighlightCount, setSavedHighlightCount] = useState(0);
+  const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [isSelecting, setIsSelecting] = useState(false);
   const [tooltip, setTooltip] = useState<{
     text: string;
@@ -184,14 +231,28 @@ export default function App() {
     return Math.min(container.clientWidth - 32, 800);
   }, []);
 
+  const makeTheme = useCallback(() => {
+    if (!wasmModule) return null;
+    const colors = THEMES[theme];
+    return new wasmModule.RenderTheme(
+      colors.bg,
+      colors.text,
+      colors.superscript,
+      colors.highlight,
+      colors.selection,
+    );
+  }, [theme]);
+
   const renderPage = useCallback(
     (r: EpubReaderType, pageIdx: number, canvas: HTMLCanvasElement | null) => {
       if (!canvas) return;
-      r.render_page(canvas, pageIdx, DPR);
+      const t = makeTheme();
+      if (!t) return;
+      r.render_page(canvas, pageIdx, DPR, t);
       canvas.style.width = `${canvas.width / DPR}px`;
       canvas.style.height = `${canvas.height / DPR}px`;
     },
-    []
+    [makeTheme]
   );
 
   const rerenderAllPages = useCallback(() => {
@@ -241,34 +302,93 @@ export default function App() {
     rerenderAllPages();
   }, [rerenderAllPages]);
 
+  const closeSession = useCallback(() => {
+    sessionRef.current?.close();
+    sessionRef.current = null;
+    setSession(null);
+  }, []);
+
+  const openSampleChapter = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const wasm = await getWasm();
+      closeSession();
+      readerRef.current = null;
+      setReader(null);
+      const next = wasm.PublicationSession.load_citation_fixture();
+      sessionRef.current = next;
+      setSession(next);
+      setBookSource("fixture");
+      setTitle(next.title() || "The Brass Observatory");
+      if (!pendingCitation) {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [closeSession, pendingCitation]);
+
+  useEffect(() => {
+    if (!pendingCitation || autoOpenedRef.current) return;
+    if (!isSampleHref(pendingCitation.href) && pendingCitation.href) {
+      return;
+    }
+    autoOpenedRef.current = true;
+    void openSampleChapter();
+  }, [openSampleChapter, pendingCitation]);
+
   const loadFile = useCallback(
     async (file: File) => {
       setLoading(true);
       setError(null);
       try {
         const wasm = await getWasm();
+        closeSession();
+        readerRef.current = null;
+        setReader(null);
+        setPendingCitation(null);
         const buf = await file.arrayBuffer();
         const data = new Uint8Array(buf);
-        const r = wasm.EpubReader.load(data);
-        const storageKey = `${HIGHLIGHT_STORAGE_PREFIX}${file.name}:${file.size}:${file.lastModified}`;
-        bookStorageKeyRef.current = storageKey;
-        readerRef.current = r;
-        setReader(r);
-        setTitle(r.title() || file.name);
-        setCurrentPage(0);
-        setQuery("");
-        setResults([]);
-        setSelectedText(null);
-        setSelectionAnchor(null);
-        doLayout(r);
-        hydrateHighlights(storageKey);
+        try {
+          const next = wasm.PublicationSession.load(data);
+          sessionRef.current = next;
+          setSession(next);
+          setBookSource("upload");
+          setTitle(next.title() || file.name);
+          if (!pendingCitation) {
+            window.history.replaceState(null, "", window.location.pathname);
+          }
+        } catch (htmlErr) {
+          const r = wasm.EpubReader.load(data);
+          const storageKey = `${HIGHLIGHT_STORAGE_PREFIX}${file.name}:${file.size}:${file.lastModified}`;
+          bookStorageKeyRef.current = storageKey;
+          readerRef.current = r;
+          setReader(r);
+          setBookSource(null);
+          setTitle(r.title() || file.name);
+          setCurrentPage(0);
+          setQuery("");
+          setResults([]);
+          setSelectedText(null);
+          setSelectionAnchor(null);
+          doLayout(r);
+          hydrateHighlights(storageKey);
+          setError(
+            htmlErr instanceof Error
+              ? `HTML reader failed (${htmlErr.message}); showing canvas.`
+              : "HTML reader failed; showing canvas.",
+          );
+        }
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(false);
       }
     },
-    [doLayout, hydrateHighlights]
+    [closeSession, doLayout, hydrateHighlights]
   );
 
   // Re-layout on window resize
@@ -532,6 +652,11 @@ export default function App() {
   }, [rerenderAllPages]);
 
   useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "c" && selectedText) {
         e.preventDefault();
@@ -548,8 +673,15 @@ export default function App() {
   return (
     <div className="app">
       <header>
+        <button
+          className="theme-toggle"
+          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+          aria-label="Toggle dark mode"
+        >
+          {theme === "dark" ? "\u2600" : "\u263E"}
+        </button>
         <h1>{title || "Haddon"}</h1>
-        {reader && (
+        {reader && !session && (
           <div className="nav">
             <div className="view-toggle">
               <button
@@ -591,7 +723,7 @@ export default function App() {
         )}
       </header>
 
-      {reader && (
+      {reader && !session && (
         <div className="search-bar">
           <input
             type="text"
@@ -660,12 +792,51 @@ export default function App() {
 
       <div
         ref={containerRef}
-        className={`canvas-container ${reader ? "" : "drop-zone"}`}
+        className={`canvas-container ${reader || session ? "" : "drop-zone"}`}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >
-        {!reader && !loading && (
-          <div className="drop-prompt">Drop an .epub file here</div>
+        {!reader && !session && !loading && (
+          <div className="drop-prompt">
+            <button type="button" className="sample-button" onClick={() => void openSampleChapter()}>
+              Open the sample chapter
+            </button>
+            {pendingCitation && !isSampleHref(pendingCitation.href) && (
+              <p className="cite-teaser">
+                This link quotes “{pendingCitation.exact.slice(0, 80)}
+                {pendingCitation.exact.length > 80 ? "…" : ""}” from a book
+                that isn’t loaded. Drop that EPUB and we’ll try to find the
+                sentence.
+              </p>
+            )}
+            <label className="file-label">
+              or choose an .epub
+              <input
+                type="file"
+                accept=".epub,application/epub+zip"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void loadFile(file);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+            <p className="cite-teaser">
+              Or open{" "}
+              <a href={citationHref(MOON_QUOTE)} target="_blank" rel="noreferrer">
+                “{MOON_QUOTE.exact}”
+              </a>{" "}
+              in a new tab.
+            </p>
+          </div>
+        )}
+        {session && (
+          <SemanticReader
+            session={session}
+            initialCitation={pendingCitation}
+            allowDeepLinks={bookSource === "fixture"}
+          />
         )}
         {loading && <div className="drop-prompt">Loading...</div>}
         {error && <div className="error">{error}</div>}

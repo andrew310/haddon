@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="pub-id" version="3.0" xml:lang="en">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="pub-id">urn:uuid:82cf7a74-31ca-4ed9-94f3-a017e640e785</dc:identifier>
+    <dc:title>Citation Round Trip</dc:title>
+    <dc:creator>Haddon Fixtures</dc:creator>
+    <dc:language>en</dc:language>
+    <meta property="dcterms:modified">2026-08-13T00:00:00Z</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    <item id="chapter-one" href="text/chapter-1.xhtml" media-type="application/xhtml+xml"/>
+    <item id="chapter-two" href="text/chapter-2.xhtml" media-type="application/xhtml+xml"/>
+    <item id="notes" href="text/notes.xhtml" media-type="application/xhtml+xml"/>
+    <item id="styles" href="styles/book.css" media-type="text/css"/>
+    <item id="compass" href="images/compass.svg" media-type="image/svg+xml"/>
+    <item id="dial-source" href="data/dial.haddon" media-type="application/vnd.haddon.fixture" fallback="dial-image"/>
+    <item id="dial-image" href="images/dial-fallback.svg" media-type="image/svg+xml"/>
+  </manifest>
+  <spine>
+    <itemref idref="chapter-one"/>
+    <itemref idref="chapter-two"/>
+    <itemref idref="notes" linear="no"/>
+  </spine>
+</package>

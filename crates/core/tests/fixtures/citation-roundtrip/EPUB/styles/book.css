@@ -1,0 +1,13 @@
+html {
+  color: #172033;
+  background: #fbf7ec;
+}
+
+body {
+  font-family: serif;
+  line-height: 1.5;
+}
+
+figure {
+  margin-inline: 0;
+}
