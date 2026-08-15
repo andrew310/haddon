@@ -210,7 +210,6 @@ export default function SemanticReader({
     },
     [allowDeepLinks, session, showHref],
   );
-  );
 
   const openQuoteInNewTab = useCallback(() => {
     const citation = activeCitation ?? (allowDeepLinks ? MOON_QUOTE : null);
