@@ -163,7 +163,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-032 — Implement visible-location tracking
 
-- [x] Convert viewport visibility and DOM ranges into durable publication locators.
+- [ ] Convert viewport visibility and DOM ranges into durable publication locators.
 - **Depends on:** HADDON-016, HADDON-031
 - **Acceptance:** resizing, theme changes, and font changes preserve the logical location and emit a new rendition location.
 
