@@ -60,7 +60,6 @@ export class VisibilityTracker {
   private restoringLocation = false;
   
   private resizeObserver: ResizeObserver | null = null;
-  private scrollPending = false;
   private rafHandle: number | null = null;
   
   private viewport: ViewportSnapshot;

@@ -55,7 +55,6 @@ export interface DecorationResult {
  */
 export class DecorationManager {
   private decorations = new Map<string, Decoration>();
-  private appliedGroups = new Set<DecorationGroup>();
   
   /**
    * Add or update a decoration.

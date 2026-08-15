@@ -41,7 +41,7 @@ function simulateRemount(manager: DecorationManager, originalHtml: string): HTML
   const newRoot = createMockRoot(originalHtml);
   
   // Re-apply decorations to the new DOM
-  const result = manager.applyDecorations(newRoot);
+  manager.applyDecorations(newRoot);
   
   return newRoot;
 }
