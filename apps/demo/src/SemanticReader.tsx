@@ -7,6 +7,7 @@ import {
   isSampleHref,
 } from "./citationLink";
 import { citationFromDomSelection } from "./selectionCitation";
+import { openCitation } from "../../../packages/haddon-citation-router/open-citation";
 
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
@@ -117,37 +118,91 @@ export default function SemanticReader({
 
   const applyCitation = useCallback(
     (citation: CitationQuery, syncUrl = true) => {
-      let raw: string;
-      try {
-        raw = session.resolve_json(citationToLocatorJson(citation), "citation");
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-        return;
-      }
-      const result = JSON.parse(raw) as ResolveResult;
-      if (result.status !== "resolved" || !result.href || !result.blockId) {
+      // Build a minimal envelope for the citation router
+      const envelope = {
+        schema: "haddon.citation-envelope" as const,
+        version: 1 as const,
+        volumeId: "demo-volume",
+        sourceRevision: "unknown",
+        locator: {
+          schema: "haddon.publication-locator" as const,
+          version: 1 as const,
+          href: citation.href || "text/chapter-1.xhtml",
+          mediaType: "application/xhtml+xml",
+          locations: citation.fragment ? { fragments: [citation.fragment] } : {},
+          text: {
+            exact: citation.exact,
+            ...(citation.prefix ? { prefix: citation.prefix } : {}),
+            ...(citation.suffix ? { suffix: citation.suffix } : {}),
+          },
+        },
+        confidence: "exact" as const,
+      };
+
+      // Use the new citation router
+      const result = openCitation(envelope, session);
+
+      if (result.status === "unresolved") {
         const first = session.first_linear_href();
         if (first) showHref(first);
         setStatus(
           result.reason === "resource-missing"
-            ? "That link points at a different book than the one that’s open. Drop the original EPUB, or use the sample book for the moon-quote demo."
-            : `Could not find that sentence (${result.reason ?? result.status}).`,
+            ? "That link points at a different book than the one that is open. Drop the original EPUB, or use the sample book for the moon-quote demo."
+            : `Could not find that sentence (${result.reason}).`,
         );
+        setError(null);
         return;
       }
+
+      if (result.status === "ambiguous") {
+        // For now, just use the first candidate
+        const target = result.candidates[0];
+        showHref(target.href);
+        setCiteBlockId(target.blockId || null);
+        setStatus(
+          `Found multiple matches for "${target.exact ?? citation.exact}". Showing the first one. (ambiguous)`,
+        );
+        setError(null);
+        const resolved: CitationQuery = {
+          exact: target.exact || citation.exact,
+          href: target.href,
+          prefix: citation.prefix,
+          suffix: citation.suffix,
+          fragment: citation.fragment,
+        };
+        setActiveCitation(resolved);
+        if (syncUrl && allowDeepLinks) {
+          const next = citationHref(resolved);
+          window.history.replaceState(null, "", next);
+        }
+        return;
+      }
+
+      // Exact or recovered
+      const target = result.status === "exact" ? result.target : result.target;
       const resolved: CitationQuery = {
-        exact: result.exact || citation.exact,
-        href: result.href,
+        exact: target.exact || citation.exact,
+        href: target.href,
         prefix: citation.prefix,
         suffix: citation.suffix,
         fragment: citation.fragment,
       };
-      showHref(result.href);
+
+      showHref(target.href);
       setActiveCitation(resolved);
-      setCiteBlockId(result.blockId);
-      setStatus(
-        `Landed on “${result.exact ?? "the passage"}” (${result.confidence}, ${result.strategy}).`,
-      );
+      setCiteBlockId(target.blockId || null);
+      setError(null);
+
+      if (result.status === "recovered") {
+        setStatus(
+          `Landed on "${target.exact ?? "the passage"}" (recovered: ${result.evidence.message}).`,
+        );
+      } else {
+        setStatus(
+          `Landed on "${target.exact ?? "the passage"}" (exact match).`,
+        );
+      }
+
       if (syncUrl && allowDeepLinks) {
         const next = citationHref(resolved);
         window.history.replaceState(null, "", next);
@@ -155,46 +210,6 @@ export default function SemanticReader({
     },
     [allowDeepLinks, session, showHref],
   );
-
-  useEffect(() => {
-    try {
-      const items = JSON.parse(session.reading_order_json()) as ReadingItem[];
-      setChapters(items);
-    } catch {
-      setChapters([]);
-    }
-    if (initialCitation) {
-      if (!openedCitation.current) {
-        openedCitation.current = true;
-        applyCitation(initialCitation, true);
-      }
-    } else {
-      const first = session.first_linear_href();
-      if (first) showHref(first);
-    }
-    return () => {
-      openedCitation.current = false;
-      revokeBlobs();
-    };
-  }, [applyCitation, initialCitation, revokeBlobs, session, showHref]);
-
-  const handleClick = useCallback(
-    (event: React.MouseEvent<HTMLElement>) => {
-      const selection = window.getSelection();
-      if (selection && !selection.isCollapsed) {
-        return;
-      }
-      const anchor = (event.target as HTMLElement).closest("a");
-      if (!anchor || !rootRef.current?.contains(anchor)) return;
-      const raw = anchor.getAttribute("href");
-      if (!raw) return;
-      event.preventDefault();
-      const [path, fragment] = raw.split("#");
-      const target = path || href;
-      if (!target) return;
-      showHref(target, fragment);
-    },
-    [href, showHref],
   );
 
   const openQuoteInNewTab = useCallback(() => {
