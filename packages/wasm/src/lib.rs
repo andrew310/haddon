@@ -1,3 +1,6 @@
+mod publication_session;
+pub use publication_session::PublicationSession;
+
 use cosmic_text::FontSystem;
 use haddon_core::epub::parse_epub;
 use haddon_core::layout::{

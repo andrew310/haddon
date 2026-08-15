@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 80" role="img" aria-labelledby="title">
+  <title id="title">Fallback dial diagram</title>
+  <rect width="160" height="80" rx="8" fill="#f4ead2"/>
+  <path d="M24 58 A56 56 0 0 1 136 58" fill="none" stroke="#8b5d2e" stroke-width="5"/>
+  <path d="M80 58 113 31" stroke="#244c7a" stroke-width="4"/>
+</svg>
