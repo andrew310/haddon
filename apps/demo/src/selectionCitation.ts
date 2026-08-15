@@ -1,4 +1,5 @@
 import type { CitationQuery } from "./citationLink";
+import type { PublicationLocatorV1 } from "../../../packages/haddon-navigator/src/types";
 
 const CONTEXT = 48;
 
@@ -98,4 +99,105 @@ function closestCitedBlock(
     current = current.parentNode;
   }
   return fallback;
+}
+
+/**
+ * Convert a DOM selection to a PublicationLocatorV1.
+ * 
+ * This extends citationFromDomSelection to produce a full locator object
+ * with normalized block selectors suitable for decoration identity.
+ */
+export function locatorFromDomSelection(
+  root: HTMLElement,
+  selection: Selection | null,
+): PublicationLocatorV1 | null {
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+    return null;
+  }
+  
+  const range = selection.getRangeAt(0);
+  if (!root.contains(range.commonAncestorContainer)) {
+    return null;
+  }
+  
+  const block = closestCitedBlock(range.commonAncestorContainer, root);
+  if (!block) return null;
+  
+  const blockId = block.getAttribute("data-haddon-id");
+  if (!blockId) return null;
+  
+  const href =
+    root.querySelector("[data-haddon-href]")?.getAttribute("data-haddon-href") ||
+    root.getAttribute("data-haddon-href") ||
+    "unknown.xhtml";
+  
+  // Calculate text offsets within the block
+  const blockText = block.textContent ?? "";
+  const selectedText = selection.toString();
+  const { prefix, suffix } = contextAround(blockText, selectedText) ?? {};
+  
+  // Calculate UTF-16 offset of the selection start within the block
+  const startOffset = calculateSelectionOffset(block, range.startContainer, range.startOffset);
+  const endOffset = calculateSelectionOffset(block, range.endContainer, range.endOffset);
+  
+  return {
+    schema: "haddon.publication-locator",
+    version: 1,
+    href,
+    mediaType: "application/xhtml+xml",
+    locations: {
+      normalized: {
+        revision: "v1", // TODO: Get actual revision from session
+        start: {
+          blockId,
+          offset: {
+            value: startOffset,
+            unit: "utf16-code-unit",
+          },
+        },
+        end: endOffset !== startOffset ? {
+          blockId,
+          offset: {
+            value: endOffset,
+            unit: "utf16-code-unit",
+          },
+        } : undefined,
+      },
+      fragments: block.id ? [block.id] : undefined,
+    },
+    text: {
+      exact: selectedText,
+      prefix,
+      suffix,
+    },
+  };
+}
+
+/**
+ * Calculate the UTF-16 text offset of a DOM position within a block element.
+ */
+function calculateSelectionOffset(
+  blockElement: HTMLElement,
+  targetNode: Node,
+  targetOffset: number
+): number {
+  const walker = document.createTreeWalker(
+    blockElement,
+    NodeFilter.SHOW_TEXT,
+    null
+  );
+  
+  let utf16Offset = 0;
+  while (walker.nextNode()) {
+    const textNode = walker.currentNode as Text;
+    if (textNode === targetNode) {
+      // Found the target text node, add the offset within it
+      const text = textNode.textContent || "";
+      return utf16Offset + text.substring(0, targetOffset).length;
+    }
+    // Add this entire text node's length
+    utf16Offset += (textNode.textContent || "").length;
+  }
+  
+  return utf16Offset;
 }
