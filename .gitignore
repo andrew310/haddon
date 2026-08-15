@@ -9,3 +9,6 @@ dist/
 *.epub
 
 .playwright-mcp/
+
+# Local reference checkouts only. Do not vendor onto product branches.
+repos/
