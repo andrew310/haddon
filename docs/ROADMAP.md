@@ -214,8 +214,13 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-041 — Define citation deep-link routing
 
-- [ ] Specify and implement the URL/opening contract from Klemata to a Haddon volume and passage.
-- **Depends on:** HADDON-040, HADDON-032
+- [x] Specify and implement the URL/opening contract from Klemata to a Haddon volume and passage.
+- **Depends on:** HADDON-040, HADDON-032 (032 not blocking for basic focus/scroll)
+- **Deliverables:**
+  - Design doc: `docs/design/citation-deep-link.md`
+  - Package: `packages/haddon-citation-router/` (parse, resolve, URL encoding)
+  - Tests: `packages/haddon-citation-router/open-citation.test.ts` (20 tests passing)
+  - Demo wiring: `apps/demo/src/SemanticReader.tsx` (uses openCitation)
 - **Acceptance:** opening a link loads the volume, resolves the citation, focuses/decorates the passage, and reports recovery state to the host.
 
 ### HADDON-042 — Build the Remix 3 host adapter
