@@ -56,4 +56,15 @@ export class WasmLocatorService implements LocatorService {
     // to refresh progression, total_progression, and verify the target still exists.
     return locator;
   }
+
+  async navigateToLocator(locator: PublicationLocatorV1): Promise<void> {
+    // Scroll to the element with the given block ID
+    const blockId = locator.locations.normalized?.start.blockId;
+    if (!blockId) return;
+
+    const element = document.querySelector(`[data-haddon-id="${CSS.escape(blockId)}"]`);
+    if (element) {
+      element.scrollIntoView({ behavior: "instant", block: "start" });
+    }
+  }
 }

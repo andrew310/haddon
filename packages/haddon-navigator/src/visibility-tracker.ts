@@ -44,6 +44,9 @@ export interface LocatorService {
   
   /** Refresh redundant evidence for an existing locator. */
   refreshLocator(locator: PublicationLocatorV1): Promise<PublicationLocatorV1>;
+  
+  /** Navigate to a specific locator (restore after layout change). */
+  navigateToLocator(locator: PublicationLocatorV1): Promise<void>;
 }
 
 export class VisibilityTracker {
@@ -54,8 +57,8 @@ export class VisibilityTracker {
   private layoutRevision = 0;
   private currentLocation: VisibleLocationV1 | null = null;
   private capturedLocator: PublicationLocatorV1 | null = null;
+  private restoringLocation = false;
   
-  private intersectionObserver: IntersectionObserver | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private scrollPending = false;
   private rafHandle: number | null = null;
@@ -75,14 +78,35 @@ export class VisibilityTracker {
   /**
    * Increment layoutRevision for geometry-invalidating changes.
    * This invalidates all cached geometry and forces recalculation.
+   * 
+   * Per navigator-api.md §4: capture current durable locator, relayout,
+   * navigate/restore that locator, then publish the new VisibleLocationV1.
    */
-  incrementLayoutRevision(cause: LocationChangeCause): void {
+  async incrementLayoutRevision(cause: LocationChangeCause): Promise<void> {
     this.layoutRevision++;
+    
+    // Step 1: Capture current durable locator before layout changes
     this.capturedLocator = this.currentLocation?.current || null;
+    
+    // Step 2: Recompute viewport after layout change
     this.viewport = this.computeViewport();
     
-    // Trigger recalculation on next frame
-    this.scheduleVisibilityUpdate(cause);
+    // Step 3: If we had a location, restore it after the layout change
+    if (this.capturedLocator && !this.restoringLocation) {
+      this.restoringLocation = true;
+      try {
+        await this.locatorService.navigateToLocator(this.capturedLocator);
+        // Allow DOM to settle after navigation
+        await new Promise(resolve => setTimeout(resolve, 0));
+      } catch (error) {
+        console.warn("[VisibilityTracker] Failed to restore captured locator:", error);
+      } finally {
+        this.restoringLocation = false;
+      }
+    }
+    
+    // Step 4: Compute and publish the new visible location
+    await this.updateVisibleLocation(cause);
   }
   
   /**
@@ -121,8 +145,7 @@ export class VisibilityTracker {
       this.rafHandle = null;
     }
     
-    this.intersectionObserver?.disconnect();
-    this.intersectionObserver = null;
+    this.root.removeEventListener("scroll", this.handleScroll);
     
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
@@ -182,6 +205,11 @@ export class VisibilityTracker {
   
   private hasLocationChanged(newLocation: VisibleLocationV1): boolean {
     if (!this.currentLocation) return true;
+    
+    // Layout revision change always means geometry changed, must emit
+    if (this.currentLocation.layoutRevision !== newLocation.layoutRevision) {
+      return true;
+    }
     
     // Compare current locator href and key evidence
     const oldCurrent = this.currentLocation.current;
@@ -272,7 +300,13 @@ export class VisibilityTracker {
         layoutRevision: this.layoutRevision,
       };
       
-      return { status: "complete", location };
+      // Return honest status based on segment visibility
+      const status = target.complete ? "complete" : "partial";
+      const warnings = target.complete ? [] : ["Resource is partially visible"];
+      
+      return status === "complete" 
+        ? { status: "complete", location }
+        : { status: "partial", location, warnings };
     } catch (error) {
       return {
         status: "unavailable",
@@ -307,29 +341,31 @@ export class VisibilityTracker {
     let firstBoundary: { blockId: string; offset: number } | null = null;
     let lastBoundary: { blockId: string; offset: number } | null = null;
     let hasInvisibleContent = false;
+    let seenContent = false;
     
     while (walker.nextNode()) {
       const textNode = walker.currentNode as Text;
-      const range = document.createRange();
-      range.selectNodeContents(textNode);
-      const rects = range.getClientRects();
+      const text = textNode.textContent || "";
       
-      for (let i = 0; i < rects.length; i++) {
-        const rect = rects[i];
-        const isVisible = rect.bottom > viewportTop && rect.top < viewportBottom;
+      // Find which character offsets are visible
+      const visibleOffsets = this.findVisibleCharacterOffsets(textNode, viewportTop, viewportBottom);
+      
+      if (visibleOffsets) {
+        seenContent = true;
+        const boundary = this.getBlockBoundary(textNode, visibleOffsets.firstVisible);
+        const lastBound = this.getBlockBoundary(textNode, visibleOffsets.lastVisible);
         
-        if (isVisible) {
-          const boundary = this.getBlockBoundary(textNode, 0);
-          if (boundary) {
-            if (!firstBoundary) {
-              firstBoundary = boundary;
-            }
-            lastBoundary = boundary;
+        if (boundary) {
+          if (!firstBoundary) {
+            firstBoundary = boundary;
           }
-        } else if (firstBoundary) {
-          // Content after first visible = not complete
-          hasInvisibleContent = true;
+          if (lastBound) {
+            lastBoundary = lastBound;
+          }
         }
+      } else if (seenContent && text.trim().length > 0) {
+        // Non-visible content after we've seen visible content
+        hasInvisibleContent = true;
       }
     }
     
@@ -339,10 +375,49 @@ export class VisibilityTracker {
     
     return {
       href,
-      firstBoundary: { ...firstBoundary, offset: firstBoundary.offset },
-      lastBoundary: { ...lastBoundary, offset: lastBoundary.offset },
+      firstBoundary,
+      lastBoundary,
       complete: !hasInvisibleContent,
     };
+  }
+  
+  private findVisibleCharacterOffsets(
+    textNode: Text,
+    viewportTop: number,
+    viewportBottom: number
+  ): { firstVisible: number; lastVisible: number } | null {
+    const text = textNode.textContent || "";
+    if (text.length === 0) return null;
+    
+    let firstVisible: number | null = null;
+    let lastVisible: number | null = null;
+    
+    // Sample character positions to find visible range
+    // For performance, check start, end, and midpoints
+    const checkPoints = [0, Math.floor(text.length / 2), text.length - 1];
+    
+    for (const offset of checkPoints) {
+      const range = document.createRange();
+      range.setStart(textNode, offset);
+      range.setEnd(textNode, Math.min(offset + 1, text.length));
+      
+      const rects = range.getClientRects();
+      for (let i = 0; i < rects.length; i++) {
+        const rect = rects[i];
+        if (rect.bottom > viewportTop && rect.top < viewportBottom) {
+          if (firstVisible === null || offset < firstVisible) {
+            firstVisible = offset;
+          }
+          if (lastVisible === null || offset > lastVisible) {
+            lastVisible = offset;
+          }
+        }
+      }
+    }
+    
+    if (firstVisible === null || lastVisible === null) return null;
+    
+    return { firstVisible, lastVisible };
   }
   
   private getBlockBoundary(textNode: Text, offset: number): { blockId: string; offset: number } | null {
