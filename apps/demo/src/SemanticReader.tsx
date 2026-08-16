@@ -252,6 +252,8 @@ export default function SemanticReader({
 
   const captureSelection = useCallback(() => {
     const root = rootRef.current;
+    if (!root) return;
+    
     const selection = window.getSelection();
     
     // Get citation for URL/display
@@ -281,9 +283,7 @@ export default function SemanticReader({
       decorationManager.current.setDecoration(decoration);
       
       // Reapply decorations to the DOM
-      if (root) {
-        decorationManager.current.applyDecorations(root);
-      }
+      decorationManager.current.applyDecorations(root);
     }
   }, [allowDeepLinks, href]);
 
