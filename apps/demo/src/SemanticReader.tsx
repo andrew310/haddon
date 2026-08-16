@@ -7,6 +7,9 @@ import {
   isSampleHref,
 } from "./citationLink";
 import { citationFromDomSelection } from "./selectionCitation";
+import { VisibilityTracker } from "../../../packages/haddon-navigator/src/visibility-tracker";
+import { WasmLocatorService } from "./LocatorService";
+import type { VisibleLocationV1, LocationChangeCause } from "../../../packages/haddon-navigator/src/types";
 
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
@@ -42,6 +45,7 @@ export default function SemanticReader({
 }: Props) {
   const rootRef = useRef<HTMLElement | null>(null);
   const blobUrls = useRef<string[]>([]);
+  const visibilityTracker = useRef<VisibilityTracker | null>(null);
   const [href, setHref] = useState<string | null>(null);
   const [html, setHtml] = useState("");
   const [chapters, setChapters] = useState<ReadingItem[]>([]);
@@ -52,6 +56,7 @@ export default function SemanticReader({
     initialCitation ?? null,
   );
   const [copied, setCopied] = useState(false);
+  const [visibleLocation, setVisibleLocation] = useState<VisibleLocationV1 | null>(null);
   const openedCitation = useRef(false);
 
   const revokeBlobs = useCallback(() => {
@@ -89,6 +94,17 @@ export default function SemanticReader({
     [revokeBlobs, session],
   );
 
+  const handleLocationChange = useCallback((location: VisibleLocationV1, cause: LocationChangeCause) => {
+    setVisibleLocation(location);
+    console.log("[VisibilityTracker] Location changed:", {
+      cause,
+      href: location.current.href,
+      blockId: location.current.locations.normalized?.start.blockId,
+      offset: location.current.locations.normalized?.start.offset.value,
+      layoutRevision: location.layoutRevision,
+    });
+  }, []);
+
   const showHref = useCallback(
     (nextHref: string, fragment?: string) => {
       try {
@@ -100,6 +116,19 @@ export default function SemanticReader({
           const root = rootRef.current;
           if (!root) return;
           rewriteResources(root);
+          
+          // Initialize or recreate visibility tracker for new content
+          if (visibilityTracker.current) {
+            visibilityTracker.current.destroy();
+          }
+          
+          const locatorService = new WasmLocatorService(session);
+          visibilityTracker.current = new VisibilityTracker({
+            root,
+            onLocationChange: handleLocationChange,
+            locatorService,
+          });
+          
           if (fragment) {
             root.querySelector(`#${CSS.escape(fragment)}`)?.scrollIntoView({
               behavior: "smooth",
@@ -112,7 +141,7 @@ export default function SemanticReader({
         setError(err instanceof Error ? err.message : String(err));
       }
     },
-    [rewriteResources, session],
+    [rewriteResources, session, handleLocationChange],
   );
 
   const applyCitation = useCallback(
@@ -175,6 +204,10 @@ export default function SemanticReader({
     return () => {
       openedCitation.current = false;
       revokeBlobs();
+      if (visibilityTracker.current) {
+        visibilityTracker.current.destroy();
+        visibilityTracker.current = null;
+      }
     };
   }, [applyCitation, initialCitation, revokeBlobs, session, showHref]);
 
@@ -303,6 +336,30 @@ export default function SemanticReader({
       )}
       {status && <p className="semantic-status">{status}</p>}
       {error && <p className="error">{error}</p>}
+      {visibleLocation && (
+        <div className="visibility-debug" style={{ 
+          position: "fixed", 
+          bottom: "10px", 
+          right: "10px", 
+          padding: "8px", 
+          background: "rgba(0,0,0,0.8)", 
+          color: "#fff", 
+          fontSize: "11px",
+          borderRadius: "4px",
+          maxWidth: "300px",
+          zIndex: 1000,
+        }}>
+          <div>📍 Location: {visibleLocation.current.href}</div>
+          {visibleLocation.current.locations.normalized && (
+            <div>
+              Block: {visibleLocation.current.locations.normalized.start.blockId.substring(0, 20)}...
+              @ {visibleLocation.current.locations.normalized.start.offset.value}
+            </div>
+          )}
+          <div>Layout Rev: {visibleLocation.layoutRevision}</div>
+          <div>Segments: {visibleLocation.segments.length}</div>
+        </div>
+      )}
       <ArticleBody
         html={html}
         rootRef={rootRef}
