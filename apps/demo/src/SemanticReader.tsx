@@ -228,6 +228,58 @@ export default function SemanticReader({
     };
   }, [applyCitation, initialCitation, revokeBlobs, session, showHref]);
 
+  const resolveRelativeHref = useCallback(
+    (currentHref: string, reference: string): string => {
+      const [refPath] = reference.split("#");
+      
+      if (!refPath || refPath.startsWith("#")) {
+        return currentHref;
+      }
+      
+      if (refPath.startsWith("/") || refPath.includes(":")) {
+        return refPath;
+      }
+      
+      const currentDir = currentHref.includes("/")
+        ? currentHref.substring(0, currentHref.lastIndexOf("/"))
+        : "";
+      
+      if (!currentDir) {
+        return refPath;
+      }
+      
+      return `${currentDir}/${refPath}`;
+    },
+    [],
+  );
+
+  const extractFragmentContent = useCallback(
+    (html: string, fragmentId: string): string | null => {
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = html;
+      
+      let targetElement = tempDiv.querySelector(`#${CSS.escape(fragmentId)}`);
+      
+      if (!targetElement) {
+        targetElement = tempDiv.querySelector(`[name="${CSS.escape(fragmentId)}"]`);
+      }
+      
+      if (!targetElement) {
+        const allElements = tempDiv.querySelectorAll("[id]");
+        for (const el of Array.from(allElements)) {
+          const id = el.getAttribute("id");
+          if (id && id.includes(fragmentId)) {
+            targetElement = el;
+            break;
+          }
+        }
+      }
+      
+      return targetElement ? targetElement.innerHTML : null;
+    },
+    [],
+  );
+
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLElement>) => {
       const selection = window.getSelection();
@@ -252,9 +304,10 @@ export default function SemanticReader({
         event.preventDefault();
         const linkText = anchor.textContent || raw;
         const [path, fragment] = raw.split("#");
-        const targetHref = path || href;
+        
+        const resolvedHref = path ? resolveRelativeHref(href || "", raw) : href;
 
-        if (!targetHref) {
+        if (!resolvedHref) {
           setDrawerData({
             linkText,
             href: raw,
@@ -264,38 +317,39 @@ export default function SemanticReader({
           return;
         }
 
-        try {
-          const targetHtml = session.render_html(targetHref);
-          let resolvedContent: string | null = null;
+        let resolvedContent: string | null = null;
+        let lastError: string | null = null;
 
+        try {
+          const targetHtml = session.render_html(resolvedHref);
           if (fragment) {
-            const tempDiv = document.createElement("div");
-            tempDiv.innerHTML = targetHtml;
-            const targetElement = tempDiv.querySelector(`#${CSS.escape(fragment)}`);
-            if (targetElement) {
-              resolvedContent = targetElement.innerHTML;
-            } else {
-              resolvedContent = null;
-            }
+            resolvedContent = extractFragmentContent(targetHtml, fragment);
           } else {
             resolvedContent = targetHtml;
           }
-
-          setDrawerData({
-            linkText,
-            href: raw,
-            resolvedContent,
-            error: resolvedContent ? null : "Couldn't load the note content.",
-          });
-          setDrawerOpen(true);
-        } catch (err) {
-          setDrawerData({
-            linkText,
-            href: raw,
-            error: err instanceof Error ? err.message : "Failed to load the target.",
-          });
-          setDrawerOpen(true);
+        } catch (normalizeErr) {
+          try {
+            const bytes = session.resource_bytes(resolvedHref);
+            const decoder = new TextDecoder("utf-8");
+            const rawHtml = decoder.decode(bytes);
+            
+            if (fragment) {
+              resolvedContent = extractFragmentContent(rawHtml, fragment);
+            } else {
+              resolvedContent = rawHtml;
+            }
+          } catch (rawErr) {
+            lastError = rawErr instanceof Error ? rawErr.message : "Failed to load the target.";
+          }
         }
+
+        setDrawerData({
+          linkText,
+          href: raw,
+          resolvedContent,
+          error: resolvedContent ? null : (lastError || "Couldn't load the note content."),
+        });
+        setDrawerOpen(true);
         return;
       }
 
@@ -305,7 +359,7 @@ export default function SemanticReader({
       if (!target) return;
       showHref(target, fragment);
     },
-    [href, session, showHref],
+    [href, session, showHref, resolveRelativeHref, extractFragmentContent],
   );
 
   const openQuoteInNewTab = useCallback(() => {
