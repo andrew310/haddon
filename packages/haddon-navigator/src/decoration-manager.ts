@@ -142,8 +142,23 @@ export class DecorationManager {
     
     for (const group of groups) {
       const attrName = `data-haddon-decoration-${group}`;
+      
+      // Remove attributes from elements
       const marked = root.querySelectorAll(`[${attrName}]`);
-      marked.forEach(el => el.removeAttribute(attrName));
+      marked.forEach(el => {
+        el.removeAttribute(attrName);
+        
+        // If this is a span that was created solely for decoration, unwrap it
+        if (el.tagName === "SPAN" && el.attributes.length === 0) {
+          const parent = el.parentNode;
+          if (parent) {
+            while (el.firstChild) {
+              parent.insertBefore(el.firstChild, el);
+            }
+            parent.removeChild(el);
+          }
+        }
+      });
     }
   }
   
@@ -162,8 +177,18 @@ export class DecorationManager {
       const element = root.querySelector(`[data-haddon-id="${CSS.escape(blockId)}"]`);
       
       if (element) {
-        this.markElement(element, decoration);
-        return { success: true };
+        // Check if we have text offsets for range-accurate marking
+        const start = locator.locations.normalized.start.offset;
+        const end = locator.locations.normalized.end?.offset;
+        
+        if (start && end && start.value !== end.value) {
+          // Apply range-accurate decoration
+          return this.markRange(element, decoration, start.value, end.value);
+        } else {
+          // Fall back to block-level marking
+          this.markElement(element, decoration);
+          return { success: true };
+        }
       } else {
         return {
           success: false,
@@ -214,5 +239,101 @@ export class DecorationManager {
       const inlines = element.querySelectorAll("em, strong, span, a");
       inlines.forEach(inline => inline.setAttribute(attrName, decoration.id));
     }
+  }
+  
+  /**
+   * Mark a specific text range within a block element.
+   * This wraps the target range in a span with decoration attributes.
+   */
+  private markRange(
+    blockElement: Element,
+    decoration: Decoration,
+    startOffset: number,
+    endOffset: number
+  ): { success: boolean; warning?: string } {
+    try {
+      // Find the text range within the block
+      const range = this.createRangeFromOffsets(blockElement, startOffset, endOffset);
+      
+      if (!range) {
+        return {
+          success: false,
+          warning: `Could not create range for offsets ${startOffset}-${endOffset} in decoration ${decoration.id}`,
+        };
+      }
+      
+      // Create a wrapper span
+      const span = document.createElement("span");
+      const attrName = `data-haddon-decoration-${decoration.group}`;
+      span.setAttribute(attrName, decoration.id);
+      
+      // Wrap the range contents
+      range.surroundContents(span);
+      
+      return { success: true };
+    } catch (error) {
+      // surroundContents can fail if the range crosses element boundaries
+      // Fall back to block-level marking
+      this.markElement(blockElement, decoration);
+      return { 
+        success: true,
+        warning: `Range crosses element boundaries, fell back to block marking for decoration ${decoration.id}`,
+      };
+    }
+  }
+  
+  /**
+   * Create a DOM Range from UTF-16 offsets within a block element.
+   */
+  private createRangeFromOffsets(
+    blockElement: Element,
+    startOffset: number,
+    endOffset: number
+  ): Range | null {
+    const walker = document.createTreeWalker(
+      blockElement,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+    
+    let currentOffset = 0;
+    let startNode: Text | null = null;
+    let startNodeOffset = 0;
+    let endNode: Text | null = null;
+    let endNodeOffset = 0;
+    
+    // Walk through all text nodes to find start and end positions
+    while (walker.nextNode()) {
+      const textNode = walker.currentNode as Text;
+      const text = textNode.textContent || "";
+      const nodeLength = text.length;
+      
+      // Check if start position is in this text node
+      if (startNode === null && currentOffset + nodeLength > startOffset) {
+        startNode = textNode;
+        startNodeOffset = startOffset - currentOffset;
+      }
+      
+      // Check if end position is in this text node
+      if (currentOffset + nodeLength >= endOffset) {
+        endNode = textNode;
+        endNodeOffset = endOffset - currentOffset;
+        break;
+      }
+      
+      currentOffset += nodeLength;
+    }
+    
+    // Ensure we found both boundaries
+    if (!startNode || !endNode) {
+      return null;
+    }
+    
+    // Create the range
+    const range = document.createRange();
+    range.setStart(startNode, startNodeOffset);
+    range.setEnd(endNode, endNodeOffset);
+    
+    return range;
   }
 }
