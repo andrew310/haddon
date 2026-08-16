@@ -484,3 +484,142 @@ span[data-haddon-decoration-annotations],
   font-size: 16px;
   line-height: 1;
 }
+
+.source-drawer-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 99;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.source-drawer {
+  position: fixed;
+  top: 0;
+  right: -500px;
+  width: min(500px, 90vw);
+  height: 100vh;
+  background: var(--surface);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s ease-out;
+  overflow: hidden;
+}
+
+.source-drawer.open {
+  right: 0;
+}
+
+.source-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.source-drawer-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.source-drawer-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.source-drawer-close:hover {
+  background: var(--surface-alt);
+}
+
+.source-drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.source-drawer-section {
+  margin-bottom: 28px;
+}
+
+.source-drawer-section:last-child {
+  margin-bottom: 0;
+}
+
+.source-drawer-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+}
+
+.source-drawer-citation {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--link);
+  margin: 0;
+  font-weight: 500;
+}
+
+.source-drawer-resolved {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--surface-alt);
+  border-left: 3px solid var(--border-accent);
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.source-drawer-resolved p {
+  margin: 0 0 0.8em;
+}
+
+.source-drawer-resolved p:last-child {
+  margin-bottom: 0;
+}
+
+.source-drawer-resolved a {
+  color: var(--link);
+}
+
+.source-drawer-error {
+  font-size: 14px;
+  color: var(--error);
+  margin: 0;
+  font-style: italic;
+}
+
+.source-drawer-href {
+  font-size: 13px;
+  font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+  color: var(--text-muted);
+  margin: 0;
+  word-break: break-all;
+}
