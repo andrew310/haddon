@@ -448,6 +448,27 @@ canvas {
   border-radius: 2px;
 }
 
+/* HADDON-033: Decoration styles */
+[data-haddon-decoration-active-citation] {
+  background: rgba(255, 215, 80, 0.35);
+  border-radius: 2px;
+}
+
+[data-haddon-decoration-highlights] {
+  background: rgba(255, 235, 100, 0.4);
+  border-radius: 2px;
+}
+
+[data-haddon-decoration-search-results] {
+  background: rgba(100, 200, 255, 0.3);
+  border-radius: 2px;
+}
+
+[data-haddon-decoration-annotations] {
+  background: rgba(255, 150, 200, 0.3);
+  border-radius: 2px;
+}
+
 .theme-toggle {
   background: var(--surface-alt);
   color: var(--text);

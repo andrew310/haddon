@@ -6,10 +6,11 @@ import {
   citationToLocatorJson,
   isSampleHref,
 } from "./citationLink";
-import { citationFromDomSelection } from "./selectionCitation";
+import { citationFromDomSelection, locatorFromDomSelection } from "./selectionCitation";
 import { VisibilityTracker } from "../../../packages/haddon-navigator/src/visibility-tracker";
+import { DecorationManager, type Decoration } from "../../../packages/haddon-navigator/src/decoration-manager";
 import { WasmLocatorService } from "./LocatorService";
-import type { VisibleLocationV1, LocationChangeCause } from "../../../packages/haddon-navigator/src/types";
+import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1 } from "../../../packages/haddon-navigator/src/types";
 
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
@@ -46,6 +47,7 @@ export default function SemanticReader({
   const rootRef = useRef<HTMLElement | null>(null);
   const blobUrls = useRef<string[]>([]);
   const visibilityTracker = useRef<VisibilityTracker | null>(null);
+  const decorationManager = useRef<DecorationManager>(new DecorationManager());
   const [href, setHref] = useState<string | null>(null);
   const [html, setHtml] = useState("");
   const [chapters, setChapters] = useState<ReadingItem[]>([]);
@@ -55,6 +57,7 @@ export default function SemanticReader({
   const [activeCitation, setActiveCitation] = useState<CitationQuery | null>(
     initialCitation ?? null,
   );
+  const [activeLocator, setActiveLocator] = useState<PublicationLocatorV1 | null>(null);
   const [copied, setCopied] = useState(false);
   const [visibleLocation, setVisibleLocation] = useState<VisibleLocationV1 | null>(null);
   const openedCitation = useRef(false);
@@ -128,6 +131,12 @@ export default function SemanticReader({
             onLocationChange: handleLocationChange,
             locatorService,
           });
+          
+          // Apply decorations to the new DOM
+          const result = decorationManager.current.applyDecorations(root);
+          if (result.warnings.length > 0) {
+            console.warn("[DecorationManager] Warnings:", result.warnings);
+          }
           
           if (fragment) {
             root.querySelector(`#${CSS.escape(fragment)}`)?.scrollIntoView({
@@ -238,14 +247,38 @@ export default function SemanticReader({
 
   const captureSelection = useCallback(() => {
     const root = rootRef.current;
-    const citation = citationFromDomSelection(root, window.getSelection());
-    if (!citation) return;
-    if (href && !citation.href) citation.href = href;
-    setActiveCitation(citation);
-    setCopied(false);
-    setCiteBlockId(null);
-    if (allowDeepLinks) {
-      window.history.replaceState(null, "", citationHref(citation));
+    const selection = window.getSelection();
+    
+    // Get citation for URL/display
+    const citation = citationFromDomSelection(root, selection);
+    if (citation) {
+      if (href && !citation.href) citation.href = href;
+      setActiveCitation(citation);
+      setCopied(false);
+      setCiteBlockId(null);
+      if (allowDeepLinks) {
+        window.history.replaceState(null, "", citationHref(citation));
+      }
+    }
+    
+    // Get locator for decoration
+    const locator = locatorFromDomSelection(root, selection);
+    if (locator) {
+      setActiveLocator(locator);
+      
+      // Clear previous active-citation decorations and add the new one
+      decorationManager.current.clearGroup("active-citation");
+      const decoration: Decoration = {
+        id: `selection-${Date.now()}`,
+        locator,
+        group: "active-citation",
+      };
+      decorationManager.current.setDecoration(decoration);
+      
+      // Reapply decorations to the DOM
+      if (root) {
+        decorationManager.current.applyDecorations(root);
+      }
     }
   }, [allowDeepLinks, href]);
 
