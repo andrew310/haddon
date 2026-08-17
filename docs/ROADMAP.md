@@ -142,7 +142,9 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-025 — Rebuild search on normalized text and locators
 
-- [ ] Return locator-backed results with exact quote context and correct Unicode handling.
+- [~] Return locator-backed results with exact quote context and correct Unicode handling.
+  - [x] First-cut implementation: WASM search method queries normalized text across all linear spine items, returns locator-backed hits with snippets, UI with Cmd/Ctrl-F focus, results list with navigation, and hits use decoration system for highlighting.
+  - [ ] Full implementation: cancellable/resumable search, fuzzy matching, diacritic folding, multi-block results.
 - **Depends on:** HADDON-016, HADDON-022, HADDON-024
 - **Acceptance:** multiple matches per block, case folding, diacritics, and Unicode expansion cannot produce invalid offsets.
 

@@ -13,6 +13,15 @@ import { WasmLocatorService } from "./LocatorService";
 import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1 } from "../../../packages/haddon-navigator/src/types";
 import { SourceDrawer } from "./SourceDrawer";
 
+type SearchHit = {
+  href: string;
+  blockId: string;
+  start: number;
+  end: number;
+  exact: string;
+  snippet: string;
+};
+
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
 
@@ -69,6 +78,9 @@ export default function SemanticReader({
     resolvedContent?: string | null;
     error?: string | null;
   } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const revokeBlobs = useCallback(() => {
     for (const url of blobUrls.current) {
@@ -417,6 +429,79 @@ export default function SemanticReader({
     await navigator.clipboard.writeText(text);
   }, [activeCitation]);
 
+  const performSearch = useCallback(() => {
+    const trimmed = searchQuery.trim();
+    if (!trimmed) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      const resultsJson = session.search_json(trimmed, 50);
+      const hits = JSON.parse(resultsJson) as SearchHit[];
+      setSearchResults(hits);
+    } catch (err) {
+      console.error("Search failed:", err);
+      setSearchResults([]);
+    }
+  }, [searchQuery, session]);
+
+  const navigateToHit = useCallback((hit: SearchHit) => {
+    showHref(hit.href);
+    
+    requestAnimationFrame(() => {
+      const root = rootRef.current;
+      if (!root) return;
+
+      decorationManager.current.clearGroup("search-hit");
+      const locator: PublicationLocatorV1 = {
+        schema: "haddon.publication-locator",
+        version: 1,
+        href: hit.href,
+        locations: {
+          normalized: {
+            start: {
+              blockId: hit.blockId,
+              offset: {
+                value: hit.start,
+                unit: "utf-16-code-unit",
+              },
+            },
+            end: {
+              blockId: hit.blockId,
+              offset: {
+                value: hit.end,
+                unit: "utf-16-code-unit",
+              },
+            },
+          },
+        },
+        text: {
+          exact: hit.exact,
+        },
+      };
+
+      const decoration: Decoration = {
+        id: `search-hit-${Date.now()}`,
+        locator,
+        group: "search-hit",
+      };
+      decorationManager.current.setDecoration(decoration);
+
+      requestAnimationFrame(() => {
+        const result = decorationManager.current.applyDecorations(root);
+        if (result.warnings.length > 0) {
+          console.warn("[Search] Decoration warnings:", result.warnings);
+        }
+
+        const block = root.querySelector(`[data-haddon-id="${CSS.escape(hit.blockId)}"]`);
+        if (block) {
+          block.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      });
+    });
+  }, [showHref]);
+
   useEffect(() => {
     if (!citeBlockId || !html) return;
     const root = rootRef.current;
@@ -433,6 +518,18 @@ export default function SemanticReader({
     target.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [citeBlockId, html]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <div className="semantic-reader">
       <SourceDrawer
@@ -443,6 +540,44 @@ export default function SemanticReader({
         resolvedContent={drawerData?.resolvedContent}
         error={drawerData?.error}
       />
+      <div className="search-bar">
+        <input
+          ref={searchInputRef}
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              performSearch();
+            }
+          }}
+          placeholder="Search in this book (Cmd/Ctrl-F)"
+          className="search-input"
+        />
+        <button type="button" onClick={performSearch} className="search-button">
+          Search
+        </button>
+        {searchResults.length > 0 && (
+          <span className="search-count">
+            {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
+          </span>
+        )}
+      </div>
+      {searchResults.length > 0 && (
+        <div className="search-results">
+          {searchResults.map((hit, index) => (
+            <button
+              key={`${hit.href}-${hit.blockId}-${hit.start}-${index}`}
+              type="button"
+              className="search-result-item"
+              onClick={() => navigateToHit(hit)}
+            >
+              <div className="search-result-href">{hit.href}</div>
+              <div className="search-result-snippet">{hit.snippet}</div>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="semantic-toolbar">
         {allowDeepLinks && (
           <button type="button" onClick={() => applyCitation(MOON_QUOTE)}>

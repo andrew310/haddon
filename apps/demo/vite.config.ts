@@ -6,4 +6,7 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ["haddon-wasm"],
   },
+  test: {
+    globals: true,
+  },
 });
