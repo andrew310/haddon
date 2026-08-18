@@ -373,4 +373,149 @@ describe("DecorationManager", () => {
       expect(element?.getAttribute("data-haddon-decoration-search-results")).toBe("dec-1");
     });
   });
+  
+  describe("range-accurate decorations", () => {
+    it("should mark only the specified text range, not the entire block", () => {
+      const root = createMockRoot(`
+        <article>
+          <p data-haddon-id="block-1">This is a test paragraph with multiple sentences. Only part should be highlighted.</p>
+        </article>
+      `);
+
+      // Select "test paragraph with multiple sentences."
+      const locator: PublicationLocatorV1 = {
+        schema: "haddon.publication-locator",
+        version: 1,
+        href: "test.xhtml",
+        mediaType: "application/xhtml+xml",
+        locations: {
+          normalized: {
+            revision: "rev-1",
+            start: {
+              blockId: "block-1",
+              offset: { value: 10, unit: "utf16-code-unit" },
+            },
+            end: {
+              blockId: "block-1",
+              offset: { value: 49, unit: "utf16-code-unit" },
+            },
+          },
+        },
+        text: {
+          exact: "test paragraph with multiple sentences.",
+        },
+      };
+
+      manager.setDecoration({
+        id: "dec-range",
+        locator,
+        group: "highlights",
+      });
+
+      const result = manager.applyDecorations(root);
+
+      expect(result.applied).toBe(1);
+      
+      // The paragraph should NOT have the decoration attribute
+      const paragraph = root.querySelector('[data-haddon-id="block-1"]');
+      expect(paragraph?.getAttribute("data-haddon-decoration-highlights")).toBeNull();
+      
+      // A span inside should have the decoration attribute
+      const decoratedSpan = paragraph?.querySelector('[data-haddon-decoration-highlights="dec-range"]');
+      expect(decoratedSpan).not.toBeNull();
+      expect(decoratedSpan?.textContent).toBe("test paragraph with multiple sentences.");
+    });
+
+    it("should mark the entire block when offsets are not provided", () => {
+      const root = createMockRoot(`
+        <article>
+          <p data-haddon-id="block-1">Full paragraph content</p>
+        </article>
+      `);
+
+      const locator: PublicationLocatorV1 = {
+        schema: "haddon.publication-locator",
+        version: 1,
+        href: "test.xhtml",
+        mediaType: "application/xhtml+xml",
+        locations: {
+          normalized: {
+            revision: "rev-1",
+            start: {
+              blockId: "block-1",
+              offset: { value: 0, unit: "utf16-code-unit" },
+            },
+          },
+        },
+      };
+
+      manager.setDecoration({
+        id: "dec-block",
+        locator,
+        group: "highlights",
+      });
+
+      const result = manager.applyDecorations(root);
+
+      expect(result.applied).toBe(1);
+      
+      // The paragraph itself should have the decoration
+      const paragraph = root.querySelector('[data-haddon-id="block-1"]');
+      expect(paragraph?.getAttribute("data-haddon-decoration-highlights")).toBe("dec-block");
+    });
+
+    it("should handle range decorations across remount", () => {
+      const html = `
+        <article>
+          <p data-haddon-id="block-1">Identify the three essential ingredients of natural selection. First ingredient here.</p>
+        </article>
+      `;
+      
+      const root1 = createMockRoot(html);
+
+      // Select just the first sentence including the period
+      const locator: PublicationLocatorV1 = {
+        schema: "haddon.publication-locator",
+        version: 1,
+        href: "test.xhtml",
+        mediaType: "application/xhtml+xml",
+        locations: {
+          normalized: {
+            revision: "rev-1",
+            start: {
+              blockId: "block-1",
+              offset: { value: 0, unit: "utf16-code-unit" },
+            },
+            end: {
+              blockId: "block-1",
+              offset: { value: 62, unit: "utf16-code-unit" },
+            },
+          },
+        },
+        text: {
+          exact: "Identify the three essential ingredients of natural selection.",
+        },
+      };
+
+      manager.setDecoration({
+        id: "dec-sentence",
+        locator,
+        group: "active-citation",
+      });
+
+      manager.applyDecorations(root1);
+      
+      const span1 = root1.querySelector('[data-haddon-decoration-active-citation="dec-sentence"]');
+      expect(span1).not.toBeNull();
+      expect(span1?.textContent).toBe("Identify the three essential ingredients of natural selection.");
+
+      // Simulate remount
+      const root2 = createMockRoot(html);
+      manager.applyDecorations(root2);
+      
+      const span2 = root2.querySelector('[data-haddon-decoration-active-citation="dec-sentence"]');
+      expect(span2).not.toBeNull();
+      expect(span2?.textContent).toBe("Identify the three essential ingredients of natural selection.");
+    });
+  });
 });

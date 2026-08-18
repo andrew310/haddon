@@ -170,7 +170,8 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-033 — Implement selection and decorations
 
-- [~] Expose selections as locators and render grouped citations, highlights, search results, and annotations. (Thin MVP: selection → locator, active-citation decoration, remount-stable identity. Full grouped decorations and annotation persistence deferred.)
+- [x] Expose selections as locators and render grouped citations, highlights, search results, and annotations. (Thin MVP: selection → locator, active-citation decoration, remount-stable identity. Full grouped decorations and annotation persistence deferred.)
+  - [x] Range-accurate decorations: decorations now paint the exact text range specified by start/end offsets, not the entire block element. Uses span wrapping for precise highlighting.
 - **Depends on:** HADDON-018, HADDON-031, HADDON-032
 - **Acceptance:** decoration identity is independent of DOM element instances and can be restored after remounting.
 
