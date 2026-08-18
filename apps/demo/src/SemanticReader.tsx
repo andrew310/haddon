@@ -11,6 +11,7 @@ import { VisibilityTracker } from "../../../packages/haddon-navigator/src/visibi
 import { DecorationManager, type Decoration } from "../../../packages/haddon-navigator/src/decoration-manager";
 import { WasmLocatorService } from "./LocatorService";
 import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1 } from "../../../packages/haddon-navigator/src/types";
+import { SourceDrawer } from "./SourceDrawer";
 
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
@@ -61,6 +62,13 @@ export default function SemanticReader({
   const [copied, setCopied] = useState(false);
   const [visibleLocation, setVisibleLocation] = useState<VisibleLocationV1 | null>(null);
   const openedCitation = useRef(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerData, setDrawerData] = useState<{
+    linkText: string;
+    href: string;
+    resolvedContent?: string | null;
+    error?: string | null;
+  } | null>(null);
 
   const revokeBlobs = useCallback(() => {
     for (const url of blobUrls.current) {
@@ -225,6 +233,58 @@ export default function SemanticReader({
     };
   }, [applyCitation, initialCitation, revokeBlobs, session, showHref]);
 
+  const resolveRelativeHref = useCallback(
+    (currentHref: string, reference: string): string => {
+      const [refPath] = reference.split("#");
+      
+      if (!refPath || refPath.startsWith("#")) {
+        return currentHref;
+      }
+      
+      if (refPath.startsWith("/") || refPath.includes(":")) {
+        return refPath;
+      }
+      
+      const currentDir = currentHref.includes("/")
+        ? currentHref.substring(0, currentHref.lastIndexOf("/"))
+        : "";
+      
+      if (!currentDir) {
+        return refPath;
+      }
+      
+      return `${currentDir}/${refPath}`;
+    },
+    [],
+  );
+
+  const extractFragmentContent = useCallback(
+    (html: string, fragmentId: string): string | null => {
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = html;
+      
+      let targetElement = tempDiv.querySelector(`#${CSS.escape(fragmentId)}`);
+      
+      if (!targetElement) {
+        targetElement = tempDiv.querySelector(`[name="${CSS.escape(fragmentId)}"]`);
+      }
+      
+      if (!targetElement) {
+        const allElements = tempDiv.querySelectorAll("[id]");
+        for (const el of Array.from(allElements)) {
+          const id = el.getAttribute("id");
+          if (id && id.includes(fragmentId)) {
+            targetElement = el;
+            break;
+          }
+        }
+      }
+      
+      return targetElement ? targetElement.innerHTML : null;
+    },
+    [],
+  );
+
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLElement>) => {
       const selection = window.getSelection();
@@ -235,13 +295,76 @@ export default function SemanticReader({
       if (!anchor || !rootRef.current?.contains(anchor)) return;
       const raw = anchor.getAttribute("href");
       if (!raw) return;
+
+      const isCitationLink = 
+        anchor.classList.contains("haddon-noteref") ||
+        anchor.getAttribute("role") === "doc-noteref" ||
+        anchor.getAttribute("epub:type") === "noteref";
+
+      const isInternalFragmentLink = 
+        raw.startsWith("#") || 
+        (!raw.startsWith("http://") && !raw.startsWith("https://") && raw.includes("#"));
+
+      if (isCitationLink || isInternalFragmentLink) {
+        event.preventDefault();
+        const linkText = anchor.textContent || raw;
+        const [path, fragment] = raw.split("#");
+        
+        const resolvedHref = path ? resolveRelativeHref(href || "", raw) : href;
+
+        if (!resolvedHref) {
+          setDrawerData({
+            linkText,
+            href: raw,
+            error: "Could not resolve the link target.",
+          });
+          setDrawerOpen(true);
+          return;
+        }
+
+        let resolvedContent: string | null = null;
+        let lastError: string | null = null;
+
+        try {
+          const targetHtml = session.render_html(resolvedHref);
+          if (fragment) {
+            resolvedContent = extractFragmentContent(targetHtml, fragment);
+          } else {
+            resolvedContent = targetHtml;
+          }
+        } catch (normalizeErr) {
+          try {
+            const bytes = session.resource_bytes(resolvedHref);
+            const decoder = new TextDecoder("utf-8");
+            const rawHtml = decoder.decode(bytes);
+            
+            if (fragment) {
+              resolvedContent = extractFragmentContent(rawHtml, fragment);
+            } else {
+              resolvedContent = rawHtml;
+            }
+          } catch (rawErr) {
+            lastError = rawErr instanceof Error ? rawErr.message : "Failed to load the target.";
+          }
+        }
+
+        setDrawerData({
+          linkText,
+          href: raw,
+          resolvedContent,
+          error: resolvedContent ? null : (lastError || "Couldn't load the note content."),
+        });
+        setDrawerOpen(true);
+        return;
+      }
+
       event.preventDefault();
       const [path, fragment] = raw.split("#");
       const target = path || href;
       if (!target) return;
       showHref(target, fragment);
     },
-    [href, showHref],
+    [href, session, showHref, resolveRelativeHref, extractFragmentContent],
   );
 
   const openQuoteInNewTab = useCallback(() => {
@@ -317,6 +440,14 @@ export default function SemanticReader({
 
   return (
     <div className="semantic-reader">
+      <SourceDrawer
+        isOpen={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        linkText={drawerData?.linkText || ""}
+        href={drawerData?.href || ""}
+        resolvedContent={drawerData?.resolvedContent}
+        error={drawerData?.error}
+      />
       <div className="semantic-toolbar">
         {allowDeepLinks && (
           <button type="button" onClick={() => applyCitation(MOON_QUOTE)}>
