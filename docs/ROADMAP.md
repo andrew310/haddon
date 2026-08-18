@@ -100,6 +100,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 - [x] Produce normalized resources with deterministic node IDs and mappings to source href/fragment/ranges.
 - **Depends on:** HADDON-013, HADDON-015
 - **Acceptance:** ordinary links, element IDs, notes, and text context in HADDON-010 survive normalization and map both directions.
+- **Note:** Production ID collision bug fixed (PR #7): rare edge cases in real EPUBs caused duplicate node IDs. Added counter-based disambiguation to ensure unique IDs while preserving citation identity.
 
 ### HADDON-018 — Pass the citation round-trip acceptance test
 

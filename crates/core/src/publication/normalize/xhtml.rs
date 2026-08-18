@@ -81,6 +81,7 @@ struct Converter<'a> {
     claimed_src_ids: HashSet<String>,
     assigned_ids: HashSet<String>,
     id_counts: BTreeMap<String, u32>,
+    id_disambiguation: BTreeMap<String, u32>,
     warnings: Vec<super::NormalizationWarning>,
     segments: Vec<SourceMapSegment>,
 }
@@ -101,6 +102,7 @@ impl<'a> Converter<'a> {
             claimed_src_ids: HashSet::new(),
             assigned_ids: HashSet::new(),
             id_counts: BTreeMap::new(),
+            id_disambiguation: BTreeMap::new(),
             warnings: Vec::new(),
             segments: Vec::new(),
         }
@@ -721,13 +723,28 @@ impl<'a> Converter<'a> {
     }
 
     fn claim_id(&mut self, id: String) -> Result<String, HaddonError> {
-        if !self.assigned_ids.insert(id.clone()) {
+        // Try the base ID first
+        if self.assigned_ids.insert(id.clone()) {
+            return Ok(id);
+        }
+        
+        // ID collision detected - use counter-based disambiguation
+        // The base ID (without ordinal suffix) is used as the disambiguation key
+        let counter = self.id_disambiguation.entry(id.clone()).or_insert(0);
+        *counter += 1;
+        
+        // Generate disambiguated ID by appending ~counter
+        let disambiguated = format!("{}~{}", id, counter);
+        
+        // This should always succeed since we're using a unique counter
+        if !self.assigned_ids.insert(disambiguated.clone()) {
             return Err(HaddonError::FormatInvalid {
                 stage: Stage::Normalize,
-                message: format!("normalization produced a colliding node id {id}"),
+                message: format!("normalization produced a colliding node id {} even after disambiguation", disambiguated),
             });
         }
-        Ok(id)
+        
+        Ok(disambiguated)
     }
 
     fn element_ref(&self, element: &ParsedElement) -> SourceElementRef {

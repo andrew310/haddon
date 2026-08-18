@@ -110,9 +110,11 @@ export default function SemanticReader({
 
   const showHref = useCallback(
     (nextHref: string, fragment?: string) => {
+      // Update href immediately so the UI reflects which resource we're attempting to show
+      setHref(nextHref);
+      
       try {
         const rendered = session.render_html(nextHref);
-        setHref(nextHref);
         setHtml(rendered);
         setError(null);
         requestAnimationFrame(() => {
@@ -147,7 +149,10 @@ export default function SemanticReader({
         });
         setCiteBlockId(null);
       } catch (err) {
+        // Keep the failed href in state so the select shows which resource failed
         setError(err instanceof Error ? err.message : String(err));
+        // Clear the old HTML so we don't show stale content with the wrong href
+        setHtml("");
       }
     },
     [rewriteResources, session, handleLocationChange],
@@ -247,6 +252,8 @@ export default function SemanticReader({
 
   const captureSelection = useCallback(() => {
     const root = rootRef.current;
+    if (!root) return;
+    
     const selection = window.getSelection();
     
     // Get citation for URL/display
@@ -276,9 +283,7 @@ export default function SemanticReader({
       decorationManager.current.setDecoration(decoration);
       
       // Reapply decorations to the DOM
-      if (root) {
-        decorationManager.current.applyDecorations(root);
-      }
+      decorationManager.current.applyDecorations(root);
     }
   }, [allowDeepLinks, href]);
 
