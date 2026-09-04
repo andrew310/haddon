@@ -303,6 +303,7 @@ fn parse_item(element: &BytesStart<'_>, opf_directory: &str) -> Result<PackageIt
     };
     let media_type = attribute(element, b"media-type")
         .filter(|value| !value.is_empty())
+        .map(|mt| normalize_media_type(&mt))
         .unwrap_or_else(|| "application/octet-stream".to_string());
     let properties = attribute(element, b"properties")
         .map(|properties| properties.split_whitespace().map(str::to_string).collect())
@@ -558,5 +559,30 @@ fn navigation_warning(href: &PublicationHref, message: String) -> PublicationWar
         message,
         href: Some(href.clone()),
         recovery: Some(Recovery::Omitted),
+    }
+}
+
+fn normalize_media_type(media_type: &str) -> String {
+    let trimmed = media_type.trim();
+    if trimmed.is_empty() {
+        return "application/octet-stream".to_string();
+    }
+    
+    let (type_subtype, params) = trimmed.split_once(';').unwrap_or((trimmed, ""));
+    let type_subtype = type_subtype.trim().to_lowercase();
+    
+    if !type_subtype.contains('/') {
+        return "application/octet-stream".to_string();
+    }
+    
+    let (main_type, sub_type) = type_subtype.split_once('/').unwrap();
+    if main_type.is_empty() || sub_type.is_empty() {
+        return "application/octet-stream".to_string();
+    }
+    
+    if !params.is_empty() {
+        format!("{};{}", type_subtype, params.trim())
+    } else {
+        type_subtype
     }
 }
