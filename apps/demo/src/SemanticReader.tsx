@@ -58,6 +58,12 @@ type ReadingItem = {
   mediaType?: string;
 };
 
+type TocEntry = {
+  href: string;
+  title?: string | null;
+  children?: TocEntry[];
+};
+
 type Props = {
   session: PublicationSession;
   initialCitation?: CitationQuery | null;
@@ -269,7 +275,44 @@ export default function SemanticReader({
   useEffect(() => {
     try {
       const items = JSON.parse(session.reading_order_json()) as ReadingItem[];
-      setChapters(items);
+      
+      // Load TOC and create a title map
+      let tocMap: Map<string, string> = new Map();
+      try {
+        const tocEntries = JSON.parse(session.toc_json()) as TocEntry[];
+        
+        // Flatten TOC entries and build href -> title map
+        const flattenToc = (entries: TocEntry[], depth = 0): void => {
+          for (const entry of entries) {
+            if (entry.href && entry.title) {
+              // Store the title with optional indentation marker for nested items
+              const prefix = depth > 0 ? "  ".repeat(depth) : "";
+              tocMap.set(entry.href, prefix + entry.title);
+            }
+            if (entry.children && entry.children.length > 0) {
+              flattenToc(entry.children, depth + 1);
+            }
+          }
+        };
+        
+        flattenToc(tocEntries);
+      } catch {
+        // TOC parsing failed, continue with empty map
+      }
+      
+      // Enrich reading order items with TOC titles
+      const enrichedItems = items.map(item => {
+        if (!item.title || item.title === item.href) {
+          // No title or title is just the href - try to get from TOC
+          const tocTitle = tocMap.get(item.href);
+          if (tocTitle) {
+            return { ...item, title: tocTitle };
+          }
+        }
+        return item;
+      });
+      
+      setChapters(enrichedItems);
     } catch {
       setChapters([]);
     }

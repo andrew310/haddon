@@ -43,6 +43,18 @@ impl PublicationSession {
         serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
     }
 
+    pub fn toc_json(&self) -> String {
+        let items: Vec<serde_json::Value> = self
+            .publication
+            .manifest()
+            .navigation
+            .toc
+            .iter()
+            .map(toc_entry_json)
+            .collect();
+        serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
+    }
+
     pub fn first_linear_href(&self) -> Option<String> {
         self.publication
             .manifest()
@@ -214,6 +226,24 @@ fn link_json(link: &ResourceLink) -> serde_json::Value {
         "title": link.title.as_ref().map(|title| title.value.clone()),
         "mediaType": link.media_type,
     })
+}
+
+fn toc_entry_json(link: &ResourceLink) -> serde_json::Value {
+    let mut entry = serde_json::json!({
+        "href": link.href.as_str(),
+        "title": link.title.as_ref().map(|title| title.value.clone()),
+    });
+    
+    if !link.children.is_empty() {
+        let children: Vec<serde_json::Value> = link
+            .children
+            .iter()
+            .map(toc_entry_json)
+            .collect();
+        entry["children"] = serde_json::json!(children);
+    }
+    
+    entry
 }
 
 fn resolution_json(resolution: &LocatorResolution) -> String {
