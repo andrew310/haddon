@@ -234,6 +234,11 @@ export class DecorationManager {
     const attrName = `data-haddon-decoration-${decoration.group}`;
     element.setAttribute(attrName, decoration.id);
     
+    // Add style attribute for colored highlights
+    if (decoration.group === "highlights" && decoration.style) {
+      element.setAttribute("data-haddon-highlight-color", decoration.style);
+    }
+    
     // Also mark inline elements within the block if this is a citation
     if (decoration.group === "active-citation") {
       const inlines = element.querySelectorAll("em, strong, span, a");
@@ -266,6 +271,11 @@ export class DecorationManager {
       const span = document.createElement("span");
       const attrName = `data-haddon-decoration-${decoration.group}`;
       span.setAttribute(attrName, decoration.id);
+      
+      // Add style attribute for colored highlights
+      if (decoration.group === "highlights" && decoration.style) {
+        span.setAttribute("data-haddon-highlight-color", decoration.style);
+      }
       
       // Wrap the range contents
       range.surroundContents(span);
