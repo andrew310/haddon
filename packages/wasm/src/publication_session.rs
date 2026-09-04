@@ -103,6 +103,109 @@ impl PublicationSession {
     pub fn close(&self) {
         let _ = self.publication.close();
     }
+
+    pub fn search_json(&self, query: &str, limit: usize) -> Result<String, JsValue> {
+        if query.trim().is_empty() {
+            return Ok("[]".to_string());
+        }
+
+        let reading_order = &self.publication.manifest().reading_order;
+        let linear_items: Vec<_> = reading_order
+            .iter()
+            .filter(|link| link.is_linear())
+            .collect();
+
+        let mut hits = Vec::new();
+        let needle = query.trim();
+        let needle_lower = needle.to_lowercase();
+
+        for link in linear_items {
+            if hits.len() >= limit {
+                break;
+            }
+
+            let normalized = match self.publication.normalize(link.href.as_str()) {
+                Ok(outcome) => match outcome.value {
+                    haddon_core::publication::NormalizationResult::Normalized(resource) => resource,
+                    _ => continue,
+                },
+                Err(_) => continue,
+            };
+
+            normalized.root.for_each_block(&mut |block| {
+                if hits.len() >= limit {
+                    return;
+                }
+
+                let Some(text_block) = block.as_text_block() else {
+                    return;
+                };
+
+                let text = &text_block.text;
+                let text_lower = text.to_lowercase();
+
+                let mut search_offset = 0;
+                while let Some(relative_idx) = text_lower[search_offset..].find(&needle_lower) {
+                    let start_idx = search_offset + relative_idx;
+                    let end_idx = start_idx + needle.len();
+
+                    let exact_match = &text[start_idx..end_idx];
+
+                    let snippet = make_search_snippet(text, start_idx, needle.len());
+
+                    let Ok(start_offset) =
+                        haddon_core::publication::utf16_offset_at_byte(text, start_idx)
+                    else {
+                        search_offset = end_idx;
+                        continue;
+                    };
+                    let Ok(end_offset) =
+                        haddon_core::publication::utf16_offset_at_byte(text, end_idx)
+                    else {
+                        search_offset = end_idx;
+                        continue;
+                    };
+
+                    hits.push(serde_json::json!({
+                        "href": normalized.href,
+                        "blockId": text_block.base.id,
+                        "start": start_offset,
+                        "end": end_offset,
+                        "exact": exact_match,
+                        "snippet": snippet,
+                    }));
+
+                    search_offset = end_idx;
+
+                    if hits.len() >= limit {
+                        return;
+                    }
+                }
+            });
+        }
+
+        serde_json::to_string(&hits).map_err(haddon_error)
+    }
+}
+
+fn make_search_snippet(text: &str, match_start: usize, match_len: usize) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let start_char = text[..match_start].chars().count();
+    let end_char = start_char + text[match_start..match_start + match_len].chars().count();
+    let snippet_start = start_char.saturating_sub(40);
+    let snippet_end = (end_char + 60).min(chars.len());
+
+    let mut snippet: String = chars[snippet_start..snippet_end].iter().collect();
+    snippet = snippet.split_whitespace().collect::<Vec<_>>().join(" ");
+
+    if snippet_start > 0 {
+        snippet.insert_str(0, "...");
+    }
+    if snippet_end < chars.len() {
+        snippet.push_str("...");
+    }
+
+    snippet
 }
 
 fn link_json(link: &ResourceLink) -> serde_json::Value {

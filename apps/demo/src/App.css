@@ -326,6 +326,88 @@ canvas {
   margin: 8px auto 48px;
 }
 
+.semantic-reader .search-bar {
+  padding: 0 0 16px;
+  max-width: none;
+}
+
+.semantic-reader .search-input {
+  flex: 1;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.semantic-reader .search-button {
+  background: var(--active-bg);
+  color: var(--active-text);
+  border: 1px solid var(--active-border);
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.semantic-reader .search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  max-width: none;
+  padding: 0;
+}
+
+.semantic-reader .search-result-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.semantic-reader .search-result-item:hover {
+  background: var(--surface);
+  border-color: var(--border-accent);
+  box-shadow: 0 2px 8px var(--canvas-shadow);
+}
+
+.semantic-reader .search-result-href {
+  color: var(--link);
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", Monaco, Consolas, monospace;
+}
+
+.semantic-reader .search-result-snippet {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.search-snippet-highlight {
+  background: rgba(255, 215, 80, 0.6);
+  color: var(--text);
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+span[data-haddon-decoration-search-hit],
+[data-haddon-decoration-search-hit] {
+  background: rgba(100, 200, 255, 0.4);
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(100, 200, 255, 0.2);
+}
+
 .semantic-toolbar {
   display: flex;
   flex-wrap: wrap;
