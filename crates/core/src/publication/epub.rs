@@ -30,6 +30,7 @@ struct PackageDocument {
     items: Vec<PackageItem>,
     spine: Vec<(String, bool)>,
     rendition: RenditionHints,
+    ncx_id: Option<String>,
 }
 
 pub(crate) fn parse(data: &[u8]) -> Result<ParsedPublication, HaddonError> {
@@ -38,7 +39,7 @@ pub(crate) fn parse(data: &[u8]) -> Result<ParsedPublication, HaddonError> {
             message: error.to_string(),
         })?;
     let container = read_required_text(&mut archive, "META-INF/container.xml")?;
-    let opf_path = parse_container(&container)?;
+    let (opf_path, mut warnings) = parse_container(&container)?;
     let opf_path = canonical_archive_path(&opf_path)?;
     let opf = read_required_text(&mut archive, &opf_path)?;
     let package = parse_package(&opf, &opf_path)?;
@@ -79,7 +80,21 @@ pub(crate) fn parse(data: &[u8]) -> Result<ParsedPublication, HaddonError> {
         }
     }
 
-    let mut warnings = Vec::new();
+    // Detect fallback cycles
+    for item in &package.items {
+        if let Some(cycle) = detect_fallback_cycle(&item.id, &by_id) {
+            warnings.push(PublicationWarning {
+                code: "haddon.manifest.fallback-cycle".to_string(),
+                severity: WarningSeverity::Major,
+                stage: Stage::Manifest,
+                message: format!("fallback cycle detected: {}", cycle.join(" -> ")),
+                href: Some(item.href.clone()),
+                recovery: Some(Recovery::Ignored),
+            });
+        }
+    }
+
+    let mut warnings = warnings;
     let navigation = match package
         .items
         .iter()
@@ -111,7 +126,43 @@ pub(crate) fn parse(data: &[u8]) -> Result<ParsedPublication, HaddonError> {
                 Navigation::default()
             }
         },
-        None => Navigation::default(),
+        None => {
+            // Try EPUB 2 NCX if no EPUB 3 nav
+            if let Some(ncx_id) = &package.ncx_id {
+                if let Some(ncx_item) = by_id.get(ncx_id.as_str()) {
+                    match read_optional_text(&mut archive, &ncx_item.archive_path) {
+                        Ok(Some(ncx)) => match parse_ncx(&ncx, &ncx_item.href) {
+                            Ok(navigation) => navigation,
+                            Err(error) => {
+                                warnings.push(navigation_warning(
+                                    &ncx_item.href,
+                                    format!("NCX document could not be parsed: {error}"),
+                                ));
+                                Navigation::default()
+                            }
+                        },
+                        Ok(None) => {
+                            warnings.push(navigation_warning(
+                                &ncx_item.href,
+                                "declared NCX document is missing".to_string(),
+                            ));
+                            Navigation::default()
+                        }
+                        Err(error) => {
+                            warnings.push(navigation_warning(
+                                &ncx_item.href,
+                                format!("NCX document could not be read: {error}"),
+                            ));
+                            Navigation::default()
+                        }
+                    }
+                } else {
+                    Navigation::default()
+                }
+            } else {
+                Navigation::default()
+            }
+        }
     };
 
     Ok(ParsedPublication {
@@ -130,15 +181,16 @@ pub(crate) fn parse(data: &[u8]) -> Result<ParsedPublication, HaddonError> {
     })
 }
 
-fn parse_container(xml: &str) -> Result<String, HaddonError> {
+fn parse_container(xml: &str) -> Result<(String, Vec<PublicationWarning>), HaddonError> {
     let mut reader = Reader::from_str(xml);
+    let mut rootfiles = Vec::new();
     loop {
         match reader.read_event() {
             Ok(Event::Start(element)) | Ok(Event::Empty(element))
                 if element.local_name().as_ref() == b"rootfile" =>
             {
                 if let Some(path) = attribute(&element, b"full-path") {
-                    return Ok(path);
+                    rootfiles.push(path);
                 }
             }
             Ok(Event::Eof) => break,
@@ -146,10 +198,31 @@ fn parse_container(xml: &str) -> Result<String, HaddonError> {
             _ => {}
         }
     }
-    Err(HaddonError::RequiredResourceMissing {
-        href: PublicationHref::new("META-INF/container.xml")
-            .expect("the standard container path is canonical"),
-    })
+    
+    if rootfiles.is_empty() {
+        return Err(HaddonError::RequiredResourceMissing {
+            href: PublicationHref::new("META-INF/container.xml")
+                .expect("the standard container path is canonical"),
+        });
+    }
+    
+    let mut warnings = Vec::new();
+    if rootfiles.len() > 1 {
+        warnings.push(PublicationWarning {
+            code: "haddon.manifest.multiple-packages".to_string(),
+            severity: WarningSeverity::Caution,
+            stage: Stage::Manifest,
+            message: format!(
+                "container lists {} package files; using the first ({})",
+                rootfiles.len(),
+                rootfiles[0]
+            ),
+            href: None,
+            recovery: Some(Recovery::Defaulted),
+        });
+    }
+    
+    Ok((rootfiles[0].clone(), warnings))
 }
 
 fn parse_package(xml: &str, opf_path: &str) -> Result<PackageDocument, HaddonError> {
@@ -162,6 +235,7 @@ fn parse_package(xml: &str, opf_path: &str) -> Result<PackageDocument, HaddonErr
     let mut rendition = RenditionHints::default();
     let mut text_field: Option<TextField> = None;
     let mut text = String::new();
+    let mut ncx_id = None;
     let opf_directory = opf_path
         .rsplit_once('/')
         .map(|(directory, _)| directory)
@@ -179,6 +253,7 @@ fn parse_package(xml: &str, opf_path: &str) -> Result<PackageDocument, HaddonErr
                 b"spine" => {
                     progression = attribute(&element, b"page-progression-direction")
                         .and_then(|value| parse_progression(&value));
+                    ncx_id = attribute(&element, b"toc");
                 }
                 b"meta" => {
                     if let Some(property) = attribute(&element, b"property") {
@@ -256,6 +331,7 @@ fn parse_package(xml: &str, opf_path: &str) -> Result<PackageDocument, HaddonErr
         items,
         spine,
         rendition,
+        ncx_id,
     })
 }
 
@@ -452,6 +528,74 @@ fn parse_navigation(xml: &str, nav_href: &PublicationHref) -> Result<Navigation,
     Ok(navigation)
 }
 
+fn parse_ncx(xml: &str, ncx_href: &PublicationHref) -> Result<Navigation, HaddonError> {
+    let mut reader = Reader::from_str(xml);
+    let mut navigation = Navigation::default();
+    let mut current_label = String::new();
+    let mut current_src: Option<String> = None;
+    let mut in_nav_label = false;
+    let mut in_text = false;
+
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(element)) => match element.local_name().as_ref() {
+                b"navLabel" => {
+                    in_nav_label = true;
+                    current_label.clear();
+                }
+                b"text" if in_nav_label => {
+                    in_text = true;
+                }
+                _ => {}
+            },
+            Ok(Event::Empty(element)) => {
+                if element.local_name().as_ref() == b"content" {
+                    if let Some(src) = attribute(&element, b"src") {
+                        current_src = Some(src);
+                    }
+                }
+            }
+            Ok(Event::Text(event)) if in_text => {
+                current_label.push_str(&event.unescape().unwrap_or_default());
+            }
+            Ok(Event::End(element)) => match element.local_name().as_ref() {
+                b"text" => {
+                    in_text = false;
+                }
+                b"navLabel" => {
+                    in_nav_label = false;
+                }
+                b"navPoint" => {
+                    // Complete the current nav point
+                    if let Some(src) = current_src.take() {
+                        match PublicationHref::resolve(ncx_href, &src) {
+                            Ok((href, fragment)) => {
+                                let mut link = ResourceLink::new(href, "application/xhtml+xml");
+                                link.fragment = fragment;
+                                if !current_label.is_empty() {
+                                    link.title = Some(LocalizedString::new(
+                                        current_label.trim().to_string(),
+                                        None,
+                                    ));
+                                }
+                                navigation.toc.push(link);
+                            }
+                            Err(_) => {}
+                        }
+                    }
+                    current_label.clear();
+                }
+                _ => {}
+            },
+            Ok(Event::Eof) => break,
+            Err(error) => return Err(format_invalid(Stage::Manifest, error)),
+            _ => {}
+        }
+    }
+
+    Ok(navigation)
+}
+
 fn package_language(xml: &str) -> Option<String> {
     let mut reader = Reader::from_str(xml);
     loop {
@@ -584,5 +728,38 @@ fn normalize_media_type(media_type: &str) -> String {
         format!("{};{}", type_subtype, params.trim())
     } else {
         type_subtype
+    }
+}
+
+fn detect_fallback_cycle(
+    start_id: &str,
+    items: &BTreeMap<&str, &PackageItem>,
+) -> Option<Vec<String>> {
+    let mut visited = BTreeSet::new();
+    let mut path = Vec::new();
+    let mut current_id = start_id;
+
+    loop {
+        if !visited.insert(current_id) {
+            // Found a cycle
+            if let Some(cycle_start) = path.iter().position(|id| id == current_id) {
+                let mut cycle = path[cycle_start..].to_vec();
+                cycle.push(current_id.to_string());
+                return Some(cycle);
+            }
+            return None;
+        }
+
+        path.push(current_id.to_string());
+
+        let Some(item) = items.get(current_id) else {
+            return None;
+        };
+
+        let Some(fallback_id) = &item.fallback else {
+            return None;
+        };
+
+        current_id = fallback_id;
     }
 }

@@ -118,7 +118,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-021 — Preserve the full EPUB package graph
 
-- [ ] Parse metadata, manifest, reading order, nonlinear items, fallback chains, rendition hints, EPUB 2 NCX, EPUB 3 nav, TOC, landmarks, and page list.
+- [x] Parse metadata, manifest, reading order, nonlinear items, fallback chains, rendition hints, EPUB 2 NCX, EPUB 3 nav, TOC, landmarks, and page list.
 - **Depends on:** HADDON-015, HADDON-020
 - **Acceptance:** manifest order and spine order remain distinct; fallback cycles terminate; multiple package candidates are handled deterministically.
 
