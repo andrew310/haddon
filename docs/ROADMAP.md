@@ -220,9 +220,16 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-042 — Build the Remix 3 host adapter
 
-- [ ] Package Haddon for composition from Klemata without placing Remix-specific behavior in the core or navigator.
+- [x] Package Haddon for composition from Klemata without placing Remix-specific behavior in the core or navigator.
+  - [x] Created `packages/haddon-remix-adapter` with Remix 3 component model
+  - [x] Implemented `HaddonReader` component with two-phase setup/render pattern
+  - [x] Built product-quality `SelectionPopover` with highlight colors and "explain this"
+  - [x] Wired citation routing via `openCitation()` without reader remounts
+  - [x] Added tests for adapter lifecycle and citation resolution
+  - [x] Documented integration guide (INTEGRATION.md) with Klemata example
 - **Depends on:** HADDON-002, HADDON-030, HADDON-041
-- **Acceptance:** a minimal Remix 3 route embeds a long-lived reader surface and responds to navigation without unnecessary reader remounts.
+- **Acceptance:** a minimal Remix 3 route embeds a long-lived reader surface and responds to navigation without unnecessary reader remounts. ✅
+- **Note:** Selection popover includes visual-quality floating chip design (5 highlight colors + Grok "explain this" integration point). Remix 3 is publicly available via `npm install remix` (v0.7.0+). The adapter preserves all merged main features (range-accurate decorations, source drawer, visible-location tracking) while keeping Remix-specific code isolated from Haddon core.
 
 ### HADDON-043 — Define host events and application policy
 
