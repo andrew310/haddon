@@ -164,9 +164,10 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-032 — Implement visible-location tracking
 
-- [ ] Convert viewport visibility and DOM ranges into durable publication locators.
+- [x] Convert viewport visibility and DOM ranges into durable publication locators.
 - **Depends on:** HADDON-016, HADDON-031
 - **Acceptance:** resizing, theme changes, and font changes preserve the logical location and emit a new rendition location.
+- **Note:** Merged in PR #9 (source drawer) and earlier PRs. Visibility tracking is active and location events are emitted.
 
 ### HADDON-033 — Implement selection and decorations
 
@@ -204,16 +205,18 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-040 — Finalize the Klemata citation schema
 
-- [ ] Define volume, edition, locator, quote context, label, and schema version for storage and URLs.
+- [~] Define volume, edition, locator, quote context, label, and schema version for storage and URLs.
 - Klemata-side edition store (EPUB in blob, cards in git): `klemata/docs/sources/editions.md`. `volumeId` + `sourceRevision` (SHA-256 of the EPUB bytes) + quote. Do not treat Haddon's user-upload bucket as the canonical spine.
 - **Depends on:** HADDON-018
 - **Acceptance:** the schema supports migration and represents exact, recovered, ambiguous, and unresolved citations.
+- **Note:** `packages/haddon-citation` (CitationEnvelopeV1 types + tests) exists on branch `cursor/citation-envelope-haddon-040-2416` (PR #5, open draft). Not yet merged to main. HADDON-041 rebuild brings the types forward.
 
 ### HADDON-041 — Define citation deep-link routing
 
-- [ ] Specify and implement the URL/opening contract from Klemata to a Haddon volume and passage.
+- [x] Specify and implement the URL/opening contract from Klemata to a Haddon volume and passage.
 - **Depends on:** HADDON-040, HADDON-032
 - **Acceptance:** opening a link loads the volume, resolves the citation, focuses/decorates the passage, and reports recovery state to the host.
+- **Note:** Rebuilt on current main (2026-09-04). `packages/haddon-citation-router` (openCitation, parse/encode URL, tests) and demo wiring in `apps/demo/src/SemanticReader.tsx` are complete. Preserves range-accurate decorations (#8), source drawer (#9), and visible-location tracking from main.
 
 ### HADDON-042 — Build the Remix 3 host adapter
 
