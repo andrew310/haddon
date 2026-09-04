@@ -599,6 +599,27 @@ span[data-haddon-decoration-highlights],
   border-radius: 2px;
 }
 
+/* Color-specific highlight styles */
+span[data-haddon-decoration-highlights][data-haddon-highlight-color="yellow"],
+[data-haddon-decoration-highlights][data-haddon-highlight-color="yellow"] {
+  background: rgba(255, 215, 80, 0.4);
+}
+
+span[data-haddon-decoration-highlights][data-haddon-highlight-color="blue"],
+[data-haddon-decoration-highlights][data-haddon-highlight-color="blue"] {
+  background: rgba(68, 138, 255, 0.3);
+}
+
+span[data-haddon-decoration-highlights][data-haddon-highlight-color="green"],
+[data-haddon-decoration-highlights][data-haddon-highlight-color="green"] {
+  background: rgba(105, 240, 174, 0.35);
+}
+
+span[data-haddon-decoration-highlights][data-haddon-highlight-color="pink"],
+[data-haddon-decoration-highlights][data-haddon-highlight-color="pink"] {
+  background: rgba(255, 128, 171, 0.35);
+}
+
 span[data-haddon-decoration-search-results],
 [data-haddon-decoration-search-results] {
   background: rgba(100, 200, 255, 0.3);

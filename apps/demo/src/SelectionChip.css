@@ -1,0 +1,64 @@
+.haddon-selection-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--popover-bg);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 40;
+  backdrop-filter: blur(8px);
+}
+
+.haddon-selection-chip-colors {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.haddon-selection-chip-color-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+  padding: 0;
+}
+
+.haddon-selection-chip-color-btn:hover {
+  transform: scale(1.15);
+}
+
+.haddon-selection-chip-color-btn:active {
+  transform: scale(0.95);
+}
+
+.haddon-selection-chip-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  opacity: 0.5;
+}
+
+.haddon-selection-chip-action {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.haddon-selection-chip-action:hover {
+  background: var(--surface-alt);
+}
+
+.haddon-selection-chip-action:active {
+  background: var(--border);
+}
