@@ -137,9 +137,10 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-024 — Add lazy normalization and incremental indexing
 
-- [ ] Normalize spine resources on demand and make whole-book indexing cancellable and resumable.
+- [x] Normalize spine resources on demand and make whole-book indexing cancellable and resumable.
 - **Depends on:** HADDON-020, HADDON-022
 - **Acceptance:** opening a book does not parse or shape the whole spine; resources and temporary URLs have deterministic ownership.
+- **Note:** Lazy normalization was already implemented. Added comprehensive test coverage proving: (1) opening a publication does not normalize any spine resources, (2) normalizing one resource does not trigger normalization of others, (3) resources have deterministic ownership via the Publication, (4) blob URL cleanup is managed at the application layer (demo/navigator). See `crates/core/tests/lazy_normalization.rs`.
 
 ### HADDON-025 — Rebuild search on normalized text and locators
 
