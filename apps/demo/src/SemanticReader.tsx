@@ -3,10 +3,10 @@ import {
   type CitationQuery,
   MOON_QUOTE,
   citationHref,
-  citationToLocatorJson,
   isSampleHref,
 } from "./citationLink";
 import { citationFromDomSelection, locatorFromDomSelection } from "./selectionCitation";
+import { openCitation } from "../../../packages/haddon-citation-router/open-citation";
 import { VisibilityTracker } from "../../../packages/haddon-navigator/src/visibility-tracker";
 import { DecorationManager, type Decoration } from "../../../packages/haddon-navigator/src/decoration-manager";
 import { WasmLocatorService } from "./LocatorService";
@@ -20,18 +20,6 @@ type ReadingItem = {
   href: string;
   title?: string | null;
   mediaType?: string;
-};
-
-type ResolveResult = {
-  status: string;
-  strategy?: string;
-  confidence?: string;
-  blockId?: string;
-  start?: number;
-  end?: number;
-  href?: string;
-  exact?: string;
-  reason?: string;
 };
 
 type Props = {

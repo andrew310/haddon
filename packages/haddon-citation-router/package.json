@@ -1,0 +1,15 @@
+{
+  "name": "haddon-citation-router",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./open-citation.ts"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  }
+}
