@@ -130,7 +130,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-023 — Define normalization profiles and style policy
 
-- [ ] Specify what default, accessible, and source-faithful profiles preserve, constrain, replace, or refuse.
+- [x] Specify what default, accessible, and source-faithful profiles preserve, constrain, replace, or refuse.
 - **Depends on:** HADDON-022
 - **Output:** `docs/design/normalization-policy.md`
 - **Acceptance:** typography cleanup is separated from semantic transformation; fixed-layout and spatial content have explicit fallback policy.
