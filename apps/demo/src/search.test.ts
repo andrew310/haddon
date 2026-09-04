@@ -149,4 +149,16 @@ describe("Search functionality", () => {
     expect(hit.snippet).toContain("Brass Observatory");
     expect(hit.snippet.length).toBeGreaterThan("Brass Observatory".length);
   });
+
+  it("snippet contains the exact match for highlighting", () => {
+    const resultsJson = session.search_json("moon", 50);
+    const results = JSON.parse(resultsJson);
+
+    expect(results.length).toBeGreaterThan(0);
+    
+    for (const hit of results) {
+      const snippetLower = hit.snippet.toLowerCase();
+      expect(snippetLower).toContain("moon");
+    }
+  });
 });

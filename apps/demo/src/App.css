@@ -393,6 +393,14 @@ canvas {
   line-height: 1.5;
 }
 
+.search-snippet-highlight {
+  background: rgba(255, 215, 80, 0.6);
+  color: var(--text);
+  font-weight: 600;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
 span[data-haddon-decoration-search-hit],
 [data-haddon-decoration-search-hit] {
   background: rgba(100, 200, 255, 0.4);

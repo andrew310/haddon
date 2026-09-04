@@ -22,6 +22,32 @@ type SearchHit = {
   snippet: string;
 };
 
+function highlightSnippet(snippet: string, query: string): JSX.Element {
+  if (!query.trim()) {
+    return <>{snippet}</>;
+  }
+  
+  const queryLower = query.toLowerCase();
+  const snippetLower = snippet.toLowerCase();
+  const index = snippetLower.indexOf(queryLower);
+  
+  if (index === -1) {
+    return <>{snippet}</>;
+  }
+  
+  const before = snippet.slice(0, index);
+  const match = snippet.slice(index, index + query.length);
+  const after = snippet.slice(index + query.length);
+  
+  return (
+    <>
+      {before}
+      <mark className="search-snippet-highlight">{match}</mark>
+      {after}
+    </>
+  );
+}
+
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
 
@@ -573,7 +599,7 @@ export default function SemanticReader({
               onClick={() => navigateToHit(hit)}
             >
               <div className="search-result-href">{hit.href}</div>
-              <div className="search-result-snippet">{hit.snippet}</div>
+              <div className="search-result-snippet">{highlightSnippet(hit.snippet, searchQuery)}</div>
             </button>
           ))}
         </div>
