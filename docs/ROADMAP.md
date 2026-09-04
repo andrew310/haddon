@@ -112,7 +112,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-020 — Harden archive and resource access
 
-- [ ] Implement virtual-root path safety, URL normalization, ranged reads, missing-resource behavior, MIME handling, and explicit compressed/uncompressed limits.
+- [x] Implement virtual-root path safety, URL normalization, ranged reads, missing-resource behavior, MIME handling, and explicit compressed/uncompressed limits.
 - **Depends on:** HADDON-015
 - **Acceptance:** traversal, decompression, resource-count, and oversized-XML tests pass; ZIP and exploded fixtures expose equivalent behavior.
 

@@ -7,6 +7,9 @@ use zip::ZipArchive;
 pub(crate) const STATE_OPEN: u8 = 0;
 pub(crate) const STATE_CLOSED: u8 = 2;
 
+const MAX_UNCOMPRESSED_RESOURCE_SIZE: u64 = 100 * 1024 * 1024;
+const MAX_COMPRESSED_RESOURCE_SIZE: u64 = 50 * 1024 * 1024;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ByteRange {
     pub start: u64,
@@ -72,7 +75,18 @@ impl Resource {
         let file = archive
             .by_name(&self.archive_path)
             .map_err(|_| self.not_found())?;
-        Ok(Outcome::complete(Some(file.size())))
+        let uncompressed_size = file.size();
+        if uncompressed_size > MAX_UNCOMPRESSED_RESOURCE_SIZE {
+            return Err(HaddonError::ResourceReadFailed {
+                href: self.link.href.clone(),
+                retryable: false,
+                message: format!(
+                    "uncompressed resource size {} exceeds limit of {} bytes",
+                    uncompressed_size, MAX_UNCOMPRESSED_RESOURCE_SIZE
+                ),
+            });
+        }
+        Ok(Outcome::complete(Some(uncompressed_size)))
     }
 
     pub fn read(&self, range: Option<ByteRange>) -> HaddonResult<Vec<u8>> {
@@ -83,8 +97,32 @@ impl Resource {
             .map_err(|_| self.not_found())?;
 
         let length = file.size();
+        let compressed_size = file.compressed_size();
+        
+        if length > MAX_UNCOMPRESSED_RESOURCE_SIZE {
+            return Err(HaddonError::ResourceReadFailed {
+                href: self.link.href.clone(),
+                retryable: false,
+                message: format!(
+                    "uncompressed resource size {} exceeds limit of {} bytes",
+                    length, MAX_UNCOMPRESSED_RESOURCE_SIZE
+                ),
+            });
+        }
+        
+        if compressed_size > MAX_COMPRESSED_RESOURCE_SIZE {
+            return Err(HaddonError::ResourceReadFailed {
+                href: self.link.href.clone(),
+                retryable: false,
+                message: format!(
+                    "compressed resource size {} exceeds limit of {} bytes",
+                    compressed_size, MAX_COMPRESSED_RESOURCE_SIZE
+                ),
+            });
+        }
+
         if let Some(range) = range {
-            if range.end_exclusive < range.start || range.end_exclusive > length {
+            if range.end_exclusive > length {
                 return Err(HaddonError::InvalidArgument {
                     stage: Stage::Resource,
                     field: "range".to_string(),
@@ -93,6 +131,10 @@ impl Resource {
                         range.start, range.end_exclusive
                     ),
                 });
+            }
+            
+            if range.len() == 0 {
+                return Ok(Outcome::complete(Vec::new()));
             }
 
             std::io::copy(&mut (&mut file).take(range.start), &mut std::io::sink())
@@ -119,6 +161,17 @@ impl Resource {
             let mut bytes = Vec::with_capacity(length as usize);
             file.read_to_end(&mut bytes)
                 .map_err(|error| self.read_failed(error))?;
+            if bytes.len() as u64 != length {
+                return Err(HaddonError::ResourceReadFailed {
+                    href: self.link.href.clone(),
+                    retryable: false,
+                    message: format!(
+                        "resource read {} bytes but declared size was {} bytes",
+                        bytes.len(),
+                        length
+                    ),
+                });
+            }
             Ok(Outcome::complete(bytes))
         }
     }
