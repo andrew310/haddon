@@ -1,3 +1,4 @@
+mod citation;
 mod epub;
 mod fixture;
 mod href;
@@ -8,6 +9,10 @@ pub mod normalize;
 mod resolve;
 mod resource;
 
+pub use citation::{
+    CitationConfidence, CitationEnvelopeV1, RecoveryCandidate, RecoveryEvidence,
+    RecoveryStrategy, CITATION_ENVELOPE_SCHEMA, CITATION_ENVELOPE_VERSION,
+};
 pub use fixture::citation_roundtrip_epub;
 pub use href::PublicationHref;
 pub use html::render_normalized_html;
