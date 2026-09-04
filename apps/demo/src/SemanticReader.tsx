@@ -282,12 +282,15 @@ export default function SemanticReader({
         const tocEntries = JSON.parse(session.toc_json()) as TocEntry[];
         
         // Flatten TOC entries and build href -> title map
+        // Store top-level entries first, so nested entries don't overwrite them
         const flattenToc = (entries: TocEntry[], depth = 0): void => {
           for (const entry of entries) {
             if (entry.href && entry.title) {
-              // Store the title with optional indentation marker for nested items
-              const prefix = depth > 0 ? "  ".repeat(depth) : "";
-              tocMap.set(entry.href, prefix + entry.title);
+              // Only set if not already present (so top-level wins)
+              if (!tocMap.has(entry.href)) {
+                const prefix = depth > 0 ? "  ".repeat(depth) : "";
+                tocMap.set(entry.href, prefix + entry.title);
+              }
             }
             if (entry.children && entry.children.length > 0) {
               flattenToc(entry.children, depth + 1);
