@@ -59,7 +59,7 @@ export interface NormalizedPointSelector {
 
 export interface TextOffset {
   readonly value: number;
-  readonly unit: "utf16-code-unit";
+  readonly unit: "utf-16-code-unit";
 }
 
 /**
@@ -92,6 +92,16 @@ export interface RenditionPositionV1 {
 }
 
 export type RenditionLayout = "scrolled" | "paginated" | "fixed";
+
+/**
+ * Layout mode configuration for HADDON-034.
+ */
+export interface LayoutModeConfig {
+  readonly mode: RenditionLayout;
+  readonly columnGap?: number;
+  readonly columnWidth?: number;
+  readonly direction?: "ltr" | "rtl";
+}
 
 export type LocationChangeCause =
   | "initial"
