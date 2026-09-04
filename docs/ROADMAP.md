@@ -177,6 +177,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 - [x] Expose selections as locators and render grouped citations, highlights, search results, and annotations. (Thin MVP: selection → locator, active-citation decoration, remount-stable identity. Full grouped decorations and annotation persistence deferred.)
   - [x] Range-accurate decorations: decorations now paint the exact text range specified by start/end offsets, not the entire block element. Uses span wrapping for precise highlighting.
   - [~] Source drawer: intercept in-text citation/noteref clicks and open a side drawer showing the source content instead of navigating away. First-cut implementation for the demo.
+  - [~] Selection floating chip (PR #13): On text selection, show floating chip with 4 highlight colors (yellow, blue, green, pink) and "Ask AI" action. Choosing a color clears native selection and applies durable decoration. "Ask AI" creates margin note anchored to locator (placeholder for Grok integration).
 - **Depends on:** HADDON-018, HADDON-031, HADDON-032
 - **Acceptance:** decoration identity is independent of DOM element instances and can be restored after remounting.
 

@@ -1,0 +1,59 @@
+.haddon-margin-note {
+  position: absolute;
+  background: var(--surface);
+  border: 1px solid var(--border-accent);
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  width: 280px;
+  z-index: 20;
+}
+
+.haddon-margin-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.haddon-margin-note-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.haddon-margin-note-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.haddon-margin-note-close:hover {
+  background: var(--surface-alt);
+}
+
+.haddon-margin-note-quote {
+  font-size: 13px;
+  color: var(--label-text);
+  font-style: italic;
+  line-height: 1.4;
+  margin-bottom: 10px;
+  border-left: 2px solid var(--border-accent);
+  padding-left: 8px;
+}
+
+.haddon-margin-note-content {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}

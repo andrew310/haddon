@@ -1,5 +1,12 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  useFloating,
+} from "@floating-ui/react";
+import {
   type CitationQuery,
   MOON_QUOTE,
   citationHref,
@@ -13,6 +20,8 @@ import { applyLayoutMode, scrollToElement, type LayoutModeOptions } from "../../
 import { WasmLocatorService } from "./LocatorService";
 import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1, RenditionLayout } from "../../../packages/haddon-navigator/src/types";
 import { SourceDrawer } from "./SourceDrawer";
+import { SelectionChip, type HighlightColor } from "./SelectionChip";
+import { MarginNote } from "./MarginNote";
 
 type SearchHit = {
   href: string;
@@ -99,6 +108,21 @@ export default function SemanticReader({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [layoutMode, setLayoutMode] = useState<RenditionLayout>("scrolled");
   const capturedLocationBeforeSwitch = useRef<PublicationLocatorV1 | null>(null);
+  const [showSelectionChip, setShowSelectionChip] = useState(false);
+  const [marginNotes, setMarginNotes] = useState<Array<{
+    id: string;
+    locator: PublicationLocatorV1;
+    quote: string;
+    content: string;
+    highlightId?: string;
+  }>>([]);
+
+  const { refs: selectionChipRefs, floatingStyles: selectionChipStyles } = useFloating({
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip(), shift({ padding: 12 })],
+    strategy: "fixed",
+  });
 
   const revokeBlobs = useCallback(() => {
     for (const url of blobUrls.current) {
@@ -442,6 +466,13 @@ export default function SemanticReader({
     
     const selection = window.getSelection();
     
+    // Check if there's actual text selected
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      setShowSelectionChip(false);
+      setActiveLocator(null);
+      return;
+    }
+    
     // Get citation for URL/display
     const citation = citationFromDomSelection(root, selection);
     if (citation) {
@@ -454,24 +485,27 @@ export default function SemanticReader({
       }
     }
     
-    // Get locator for decoration
+    // Get locator for decoration and chip positioning
     const locator = locatorFromDomSelection(root, selection);
     if (locator) {
       setActiveLocator(locator);
       
-      // Clear previous active-citation decorations and add the new one
-      decorationManager.current.clearGroup("active-citation");
-      const decoration: Decoration = {
-        id: `selection-${Date.now()}`,
-        locator,
-        group: "active-citation",
-      };
-      decorationManager.current.setDecoration(decoration);
+      // Position the selection chip using the native selection range
+      const range = selection.getRangeAt(0);
+      const rects = range.getClientRects();
+      if (rects.length > 0) {
+        const lastRect = rects[rects.length - 1];
+        const virtualReference = {
+          getBoundingClientRect: () => lastRect,
+        };
+        selectionChipRefs.setPositionReference(virtualReference);
+        setShowSelectionChip(true);
+      }
       
-      // Reapply decorations to the DOM
-      decorationManager.current.applyDecorations(root);
+      // Clear previous active-citation decorations (don't apply yet - chip will handle it)
+      decorationManager.current.clearGroup("active-citation");
     }
-  }, [allowDeepLinks, href]);
+  }, [allowDeepLinks, href, selectionChipRefs]);
 
   const copyCitationLink = useCallback(async () => {
     if (!activeCitation) return;
@@ -484,6 +518,113 @@ export default function SemanticReader({
     if (!text) return;
     await navigator.clipboard.writeText(text);
   }, [activeCitation]);
+
+  const handleColorSelect = useCallback((color: HighlightColor) => {
+    const root = rootRef.current;
+    const locator = activeLocator;
+    if (!root || !locator) return;
+
+    // Find overlapping highlights
+    const overlapping = decorationManager.current.findOverlappingDecorations(locator, "highlights");
+    
+    // Get IDs of highlights that have margin notes (should be preserved)
+    const highlightsWithNotes = new Set(
+      marginNotes.map(note => note.highlightId).filter(Boolean)
+    );
+    
+    // Remove overlapping highlights that don't have margin notes
+    for (const overlap of overlapping) {
+      if (!highlightsWithNotes.has(overlap.id)) {
+        decorationManager.current.removeDecoration(overlap.id);
+      }
+    }
+
+    // Clear the native selection (visually)
+    window.getSelection()?.removeAllRanges();
+    
+    // Hide the chip
+    setShowSelectionChip(false);
+    
+    // Apply the decoration with the selected color
+    const decoration: Decoration = {
+      id: `highlight-${color}-${Date.now()}`,
+      locator,
+      group: "highlights",
+      style: color,
+    };
+    decorationManager.current.setDecoration(decoration);
+    decorationManager.current.applyDecorations(root);
+    
+    // Clear the active locator
+    setActiveLocator(null);
+  }, [activeLocator, marginNotes]);
+
+  const handleAskAI = useCallback(() => {
+    const root = rootRef.current;
+    const locator = activeLocator;
+    const quote = activeCitation?.exact;
+    if (!root || !locator || !quote) return;
+
+    // Find overlapping highlights without notes and remove them
+    const overlapping = decorationManager.current.findOverlappingDecorations(locator, "highlights");
+    const highlightsWithNotes = new Set(
+      marginNotes.map(note => note.highlightId).filter(Boolean)
+    );
+    
+    for (const overlap of overlapping) {
+      if (!highlightsWithNotes.has(overlap.id)) {
+        decorationManager.current.removeDecoration(overlap.id);
+      }
+    }
+
+    // Clear the native selection
+    window.getSelection()?.removeAllRanges();
+    
+    // Hide the chip
+    setShowSelectionChip(false);
+    
+    // Create a highlight decoration for the Ask AI note (default to yellow)
+    const highlightId = `highlight-note-${Date.now()}`;
+    const decoration: Decoration = {
+      id: highlightId,
+      locator,
+      group: "highlights",
+      style: "yellow",
+    };
+    decorationManager.current.setDecoration(decoration);
+    decorationManager.current.applyDecorations(root);
+    
+    // Create a margin note linked to the highlight
+    const noteId = `note-${Date.now()}`;
+    const newNote = {
+      id: noteId,
+      locator,
+      quote,
+      content: "AI explanation coming soon... This is a placeholder for the full Grok integration.",
+      highlightId,
+    };
+    
+    setMarginNotes(prev => [...prev, newNote]);
+    
+    // Clear the active locator
+    setActiveLocator(null);
+  }, [activeLocator, activeCitation, marginNotes]);
+
+  const handleRemoveNote = useCallback((noteId: string) => {
+    const root = rootRef.current;
+    
+    // Find the note to get its associated highlight ID
+    const note = marginNotes.find(n => n.id === noteId);
+    
+    // Remove the note
+    setMarginNotes(prev => prev.filter(n => n.id !== noteId));
+    
+    // Remove the associated highlight decoration if it exists
+    if (note?.highlightId && root) {
+      decorationManager.current.removeDecoration(note.highlightId);
+      decorationManager.current.applyDecorations(root);
+    }
+  }, [marginNotes]);
 
   const performSearch = useCallback(() => {
     const trimmed = searchQuery.trim();
@@ -647,6 +788,14 @@ export default function SemanticReader({
         resolvedContent={drawerData?.resolvedContent}
         error={drawerData?.error}
       />
+      {showSelectionChip && activeLocator && (
+        <SelectionChip
+          floatingRef={selectionChipRefs.setFloating}
+          floatingStyles={selectionChipStyles}
+          onColorSelect={handleColorSelect}
+          onAskAI={handleAskAI}
+        />
+      )}
       <div className="reader-controls">
         <div className="layout-mode-toggle">
           <button
@@ -784,13 +933,27 @@ export default function SemanticReader({
           <div>Segments: {visibleLocation.segments.length}</div>
         </div>
       )}
-      <ArticleBody
-        html={html}
-        rootRef={rootRef}
-        onClick={handleClick}
-        onMouseUp={captureSelection}
-        layoutMode={layoutMode}
-      />
+      <div className={`reader-with-margin${marginNotes.length > 0 ? ' has-notes' : ''}`}>
+        <ArticleBody
+          html={html}
+          rootRef={rootRef}
+          onClick={handleClick}
+          onMouseUp={captureSelection}
+          layoutMode={layoutMode}
+        />
+        <div className="margin-notes-container">
+          {marginNotes.map(note => (
+            <MarginNote
+              key={note.id}
+              articleRoot={rootRef.current}
+              locator={note.locator}
+              quote={note.quote}
+              content={note.content}
+              onClose={() => handleRemoveNote(note.id)}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
