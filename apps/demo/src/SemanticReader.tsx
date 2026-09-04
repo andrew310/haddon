@@ -880,7 +880,7 @@ export default function SemanticReader({
           <div>Segments: {visibleLocation.segments.length}</div>
         </div>
       )}
-      <div className="reader-with-margin">
+      <div className={`reader-with-margin${marginNotes.length > 0 ? ' has-notes' : ''}`}>
         <ArticleBody
           html={html}
           rootRef={rootRef}
