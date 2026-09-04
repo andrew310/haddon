@@ -1,6 +1,7 @@
 mod citation;
 mod epub;
 mod fixture;
+mod fixed_layout_fixture;
 mod href;
 mod html;
 mod locator;
@@ -14,6 +15,7 @@ pub use citation::{
     RecoveryStrategy, CITATION_ENVELOPE_SCHEMA, CITATION_ENVELOPE_VERSION,
 };
 pub use fixture::citation_roundtrip_epub;
+pub use fixed_layout_fixture::fixed_layout_epub;
 pub use href::PublicationHref;
 pub use html::render_normalized_html;
 pub use locator::{
