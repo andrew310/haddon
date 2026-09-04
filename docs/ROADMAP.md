@@ -201,9 +201,10 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-036 — Add fixed-layout rendition
 
-- [ ] Respect viewport, spread, direction, scaling, and letterboxing metadata.
+- [x] Respect viewport, spread, direction, scaling, and letterboxing metadata.
 - **Depends on:** HADDON-021, HADDON-030, HADDON-035
 - **Acceptance:** image and XHTML fixed-layout fixtures render through the same navigator location contract.
+- **Note:** First-cut implementation complete. TypeScript backend at `packages/haddon-navigator/src/fixed-layout-backend.ts` with comprehensive test suite. Fixed-layout fixture with image and XHTML pages at `crates/core/tests/fixtures/fixed-layout/`. Supports viewport scaling, letterboxing, spread modes (none/auto/both/landscape), orientation, and page navigation. Location contract provides consistent href/spreadIndex/pageIndex. Image pages rendered as `<img>` with blob URLs; XHTML pages rendered in sandboxed iframes. Blob URL lifecycle is deterministic (tracked and revoked on destroy).
 
 ### HADDON-037 — Isolate the canvas backend
 
