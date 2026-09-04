@@ -114,6 +114,7 @@ export default function SemanticReader({
     locator: PublicationLocatorV1;
     quote: string;
     content: string;
+    highlightId?: string;
   }>>([]);
 
   const { refs: selectionChipRefs, floatingStyles: selectionChipStyles } = useFloating({
@@ -523,6 +524,21 @@ export default function SemanticReader({
     const locator = activeLocator;
     if (!root || !locator) return;
 
+    // Find overlapping highlights
+    const overlapping = decorationManager.current.findOverlappingDecorations(locator, "highlights");
+    
+    // Get IDs of highlights that have margin notes (should be preserved)
+    const highlightsWithNotes = new Set(
+      marginNotes.map(note => note.highlightId).filter(Boolean)
+    );
+    
+    // Remove overlapping highlights that don't have margin notes
+    for (const overlap of overlapping) {
+      if (!highlightsWithNotes.has(overlap.id)) {
+        decorationManager.current.removeDecoration(overlap.id);
+      }
+    }
+
     // Clear the native selection (visually)
     window.getSelection()?.removeAllRanges();
     
@@ -541,12 +557,25 @@ export default function SemanticReader({
     
     // Clear the active locator
     setActiveLocator(null);
-  }, [activeLocator]);
+  }, [activeLocator, marginNotes]);
 
   const handleAskAI = useCallback(() => {
+    const root = rootRef.current;
     const locator = activeLocator;
     const quote = activeCitation?.exact;
-    if (!locator || !quote) return;
+    if (!root || !locator || !quote) return;
+
+    // Find overlapping highlights without notes and remove them
+    const overlapping = decorationManager.current.findOverlappingDecorations(locator, "highlights");
+    const highlightsWithNotes = new Set(
+      marginNotes.map(note => note.highlightId).filter(Boolean)
+    );
+    
+    for (const overlap of overlapping) {
+      if (!highlightsWithNotes.has(overlap.id)) {
+        decorationManager.current.removeDecoration(overlap.id);
+      }
+    }
 
     // Clear the native selection
     window.getSelection()?.removeAllRanges();
@@ -554,24 +583,48 @@ export default function SemanticReader({
     // Hide the chip
     setShowSelectionChip(false);
     
-    // Create a margin note with placeholder content
+    // Create a highlight decoration for the Ask AI note (default to yellow)
+    const highlightId = `highlight-note-${Date.now()}`;
+    const decoration: Decoration = {
+      id: highlightId,
+      locator,
+      group: "highlights",
+      style: "yellow",
+    };
+    decorationManager.current.setDecoration(decoration);
+    decorationManager.current.applyDecorations(root);
+    
+    // Create a margin note linked to the highlight
     const noteId = `note-${Date.now()}`;
     const newNote = {
       id: noteId,
       locator,
       quote,
       content: "AI explanation coming soon... This is a placeholder for the full Grok integration.",
+      highlightId,
     };
     
     setMarginNotes(prev => [...prev, newNote]);
     
     // Clear the active locator
     setActiveLocator(null);
-  }, [activeLocator, activeCitation]);
+  }, [activeLocator, activeCitation, marginNotes]);
 
   const handleRemoveNote = useCallback((noteId: string) => {
-    setMarginNotes(prev => prev.filter(note => note.id !== noteId));
-  }, []);
+    const root = rootRef.current;
+    
+    // Find the note to get its associated highlight ID
+    const note = marginNotes.find(n => n.id === noteId);
+    
+    // Remove the note
+    setMarginNotes(prev => prev.filter(n => n.id !== noteId));
+    
+    // Remove the associated highlight decoration if it exists
+    if (note?.highlightId && root) {
+      decorationManager.current.removeDecoration(note.highlightId);
+      decorationManager.current.applyDecorations(root);
+    }
+  }, [marginNotes]);
 
   const performSearch = useCallback(() => {
     const trimmed = searchQuery.trim();
