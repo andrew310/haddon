@@ -205,11 +205,11 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-040 — Finalize the Klemata citation schema
 
-- [~] Define volume, edition, locator, quote context, label, and schema version for storage and URLs.
+- [x] Define volume, edition, locator, quote context, label, and schema version for storage and URLs.
 - Klemata-side edition store (EPUB in blob, cards in git): `klemata/docs/sources/editions.md`. `volumeId` + `sourceRevision` (SHA-256 of the EPUB bytes) + quote. Do not treat Haddon's user-upload bucket as the canonical spine.
 - **Depends on:** HADDON-018
 - **Acceptance:** the schema supports migration and represents exact, recovered, ambiguous, and unresolved citations.
-- **Note:** `packages/haddon-citation` (CitationEnvelopeV1 types + tests) exists on branch `cursor/citation-envelope-haddon-040-2416` (PR #5, open draft). Not yet merged to main. HADDON-041 rebuild brings the types forward.
+- **Note:** TypeScript types (`packages/haddon-citation`) landed via PR #11. Rust types (`crates/core/src/publication/citation.rs`) and design doc (`docs/design/citation-envelope.md`) completed. Schema frozen for V1.
 
 ### HADDON-041 — Define citation deep-link routing
 
