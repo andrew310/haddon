@@ -194,9 +194,10 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-035 — Add source-faithful iframe rendition
 
-- [ ] Render content unsuitable for normalization using a separately secured iframe backend.
+- [x] Render content unsuitable for normalization using a separately secured iframe backend.
 - **Depends on:** HADDON-020, HADDON-030
 - **Acceptance:** scripts are inert by default; CSP, sandbox, external-resource, origin, and URL-lifecycle policies are tested.
+- **Note:** First-cut implementation complete (PR pending). Design doc at `docs/design/iframe-rendition.md`. TypeScript backend at `packages/haddon-navigator/src/iframe-backend.ts` with comprehensive test suite covering security policies, URL lifecycle, and origin isolation. Scripts are inert via sandbox + CSP; external resources blocked; deterministic blob URL cleanup on destroy.
 
 ### HADDON-036 — Add fixed-layout rendition
 
