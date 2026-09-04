@@ -326,6 +326,37 @@ canvas {
   margin: 8px auto 48px;
 }
 
+.reader-with-margin {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  position: relative;
+}
+
+@media (max-width: 1024px) {
+  .reader-with-margin {
+    grid-template-columns: 1fr;
+  }
+}
+
+.margin-notes-container {
+  position: relative;
+  min-height: 200px;
+}
+
+@media (max-width: 1024px) {
+  .margin-notes-container {
+    display: none;
+  }
+  
+  .haddon-margin-note {
+    position: fixed;
+    right: 10px;
+    width: min(280px, calc(100vw - 40px));
+    z-index: 50;
+  }
+}
+
 .reader-controls {
   display: flex;
   align-items: center;

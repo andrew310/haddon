@@ -880,22 +880,27 @@ export default function SemanticReader({
           <div>Segments: {visibleLocation.segments.length}</div>
         </div>
       )}
-      <ArticleBody
-        html={html}
-        rootRef={rootRef}
-        onClick={handleClick}
-        onMouseUp={captureSelection}
-        layoutMode={layoutMode}
-      />
-      {marginNotes.map(note => (
-        <MarginNote
-          key={note.id}
-          locator={note.locator}
-          quote={note.quote}
-          content={note.content}
-          onClose={() => handleRemoveNote(note.id)}
+      <div className="reader-with-margin">
+        <ArticleBody
+          html={html}
+          rootRef={rootRef}
+          onClick={handleClick}
+          onMouseUp={captureSelection}
+          layoutMode={layoutMode}
         />
-      ))}
+        <div className="margin-notes-container">
+          {marginNotes.map(note => (
+            <MarginNote
+              key={note.id}
+              articleRoot={rootRef.current}
+              locator={note.locator}
+              quote={note.quote}
+              content={note.content}
+              onClose={() => handleRemoveNote(note.id)}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

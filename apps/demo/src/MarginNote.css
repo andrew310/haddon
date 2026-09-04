@@ -1,11 +1,12 @@
 .haddon-margin-note {
-  position: relative;
+  position: absolute;
   background: var(--surface);
   border: 1px solid var(--border-accent);
   border-radius: 8px;
   padding: 12px;
-  margin: 16px 0;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  width: 280px;
+  z-index: 20;
 }
 
 .haddon-margin-note-header {
