@@ -326,6 +326,41 @@ canvas {
   margin: 8px auto 48px;
 }
 
+.reader-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.layout-mode-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.layout-mode-toggle button {
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.layout-mode-toggle button:hover {
+  background: var(--surface);
+  border-color: var(--border-accent);
+}
+
+.layout-mode-toggle button.active {
+  background: var(--active-bg);
+  color: var(--active-text);
+  border-color: var(--active-border);
+}
+
 .semantic-reader .search-bar {
   padding: 0 0 16px;
   max-width: none;
@@ -487,6 +522,26 @@ span[data-haddon-decoration-search-hit],
   line-height: 1.65;
   font-size: 18px;
   user-select: text;
+  position: relative;
+  overflow-x: auto;
+}
+
+/* Paginated mode: article becomes a horizontal scroll container with CSS columns */
+.haddon-article[data-layout-mode="paginated"] {
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.haddon-article[data-layout-mode="paginated"] > * {
+  scroll-snap-align: start;
+}
+
+/* Scrolled mode: standard vertical layout */
+.haddon-article[data-layout-mode="scrolled"] {
+  overflow-x: visible;
+  overflow-y: visible;
 }
 
 .haddon-article h1,

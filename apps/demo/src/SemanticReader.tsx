@@ -9,8 +9,9 @@ import { citationFromDomSelection, locatorFromDomSelection } from "./selectionCi
 import { openCitation } from "../../../packages/haddon-citation-router/open-citation";
 import { VisibilityTracker } from "../../../packages/haddon-navigator/src/visibility-tracker";
 import { DecorationManager, type Decoration } from "../../../packages/haddon-navigator/src/decoration-manager";
+import { applyLayoutMode, scrollToElement, type LayoutModeOptions } from "../../../packages/haddon-navigator/src/layout-modes";
 import { WasmLocatorService } from "./LocatorService";
-import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1 } from "../../../packages/haddon-navigator/src/types";
+import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1, RenditionLayout } from "../../../packages/haddon-navigator/src/types";
 import { SourceDrawer } from "./SourceDrawer";
 
 type SearchHit = {
@@ -72,6 +73,7 @@ export default function SemanticReader({
   const blobUrls = useRef<string[]>([]);
   const visibilityTracker = useRef<VisibilityTracker | null>(null);
   const decorationManager = useRef<DecorationManager>(new DecorationManager());
+  const layoutCleanup = useRef<(() => void) | null>(null);
   const [href, setHref] = useState<string | null>(null);
   const [html, setHtml] = useState("");
   const [chapters, setChapters] = useState<ReadingItem[]>([]);
@@ -95,6 +97,8 @@ export default function SemanticReader({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [layoutMode, setLayoutMode] = useState<RenditionLayout>("scrolled");
+  const capturedLocationBeforeSwitch = useRef<PublicationLocatorV1 | null>(null);
 
   const revokeBlobs = useCallback(() => {
     for (const url of blobUrls.current) {
@@ -142,6 +146,26 @@ export default function SemanticReader({
     });
   }, []);
 
+  const applyCurrentLayoutMode = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    // Clean up previous layout mode
+    if (layoutCleanup.current) {
+      layoutCleanup.current();
+      layoutCleanup.current = null;
+    }
+
+    const layoutOptions: LayoutModeOptions = {
+      mode: layoutMode,
+      columnWidth: 600,
+      columnGap: 40,
+      direction: "ltr",
+    };
+
+    layoutCleanup.current = applyLayoutMode(root, layoutOptions);
+  }, [layoutMode]);
+
   const showHref = useCallback(
     (nextHref: string, fragment?: string) => {
       // Update href immediately so the UI reflects which resource we're attempting to show
@@ -155,6 +179,9 @@ export default function SemanticReader({
           const root = rootRef.current;
           if (!root) return;
           rewriteResources(root);
+          
+          // Apply current layout mode
+          applyCurrentLayoutMode();
           
           // Initialize or recreate visibility tracker for new content
           if (visibilityTracker.current) {
@@ -175,10 +202,16 @@ export default function SemanticReader({
           }
           
           if (fragment) {
-            root.querySelector(`#${CSS.escape(fragment)}`)?.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-            });
+            const target = root.querySelector(`#${CSS.escape(fragment)}`);
+            if (target instanceof HTMLElement) {
+              const layoutOptions: LayoutModeOptions = {
+                mode: layoutMode,
+                columnWidth: 600,
+                columnGap: 40,
+                direction: "ltr",
+              };
+              scrollToElement(root, target, layoutOptions);
+            }
           }
         });
         setCiteBlockId(null);
@@ -189,7 +222,7 @@ export default function SemanticReader({
         setHtml("");
       }
     },
-    [rewriteResources, session, handleLocationChange],
+    [rewriteResources, session, handleLocationChange, layoutMode, applyCurrentLayoutMode],
   );
 
   const applyCitation = useCallback(
@@ -255,6 +288,10 @@ export default function SemanticReader({
       if (visibilityTracker.current) {
         visibilityTracker.current.destroy();
         visibilityTracker.current = null;
+      }
+      if (layoutCleanup.current) {
+        layoutCleanup.current();
+        layoutCleanup.current = null;
       }
     };
   }, [applyCitation, initialCitation, revokeBlobs, session, showHref]);
@@ -514,12 +551,18 @@ export default function SemanticReader({
         }
 
         const block = root.querySelector(`[data-haddon-id="${CSS.escape(hit.blockId)}"]`);
-        if (block) {
-          block.scrollIntoView({ behavior: "smooth", block: "center" });
+        if (block instanceof HTMLElement) {
+          const layoutOptions: LayoutModeOptions = {
+            mode: layoutMode,
+            columnWidth: 600,
+            columnGap: 40,
+            direction: "ltr",
+          };
+          scrollToElement(root, block, layoutOptions);
         }
       });
     });
-  }, [showHref]);
+  }, [showHref, layoutMode]);
 
   useEffect(() => {
     if (!citeBlockId || !html) return;
@@ -534,8 +577,46 @@ export default function SemanticReader({
     if (!target) return;
     target.classList.add("haddon-cited");
     target.querySelector("em")?.classList.add("haddon-cited");
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [citeBlockId, html]);
+    
+    if (target instanceof HTMLElement) {
+      const layoutOptions: LayoutModeOptions = {
+        mode: layoutMode,
+        columnWidth: 600,
+        columnGap: 40,
+        direction: "ltr",
+      };
+      scrollToElement(root, target, layoutOptions);
+    }
+  }, [citeBlockId, html, layoutMode]);
+
+  const switchLayoutMode = useCallback(
+    async (newMode: RenditionLayout) => {
+      if (newMode === layoutMode) return;
+
+      // Capture current location before switching
+      if (visibleLocation) {
+        capturedLocationBeforeSwitch.current = visibleLocation.current;
+      }
+
+      setLayoutMode(newMode);
+
+      // Wait for layout to apply
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Restore location after mode switch
+      if (capturedLocationBeforeSwitch.current && visibilityTracker.current) {
+        try {
+          await visibilityTracker.current.incrementLayoutRevision("preferences");
+          console.log("[LayoutMode] Switched to", newMode, "and preserved location");
+        } catch (err) {
+          console.warn("[LayoutMode] Failed to restore location after mode switch:", err);
+        }
+      }
+
+      capturedLocationBeforeSwitch.current = null;
+    },
+    [layoutMode, visibleLocation],
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -549,6 +630,13 @@ export default function SemanticReader({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Apply layout mode when it changes
+  useEffect(() => {
+    if (html && rootRef.current) {
+      applyCurrentLayoutMode();
+    }
+  }, [layoutMode, html, applyCurrentLayoutMode]);
+
   return (
     <div className="semantic-reader">
       <SourceDrawer
@@ -559,6 +647,24 @@ export default function SemanticReader({
         resolvedContent={drawerData?.resolvedContent}
         error={drawerData?.error}
       />
+      <div className="reader-controls">
+        <div className="layout-mode-toggle">
+          <button
+            type="button"
+            className={layoutMode === "scrolled" ? "active" : ""}
+            onClick={() => void switchLayoutMode("scrolled")}
+          >
+            Scroll
+          </button>
+          <button
+            type="button"
+            className={layoutMode === "paginated" ? "active" : ""}
+            onClick={() => void switchLayoutMode("paginated")}
+          >
+            Pages
+          </button>
+        </div>
+      </div>
       <div className="search-bar">
         <input
           ref={searchInputRef}
@@ -683,6 +789,7 @@ export default function SemanticReader({
         rootRef={rootRef}
         onClick={handleClick}
         onMouseUp={captureSelection}
+        layoutMode={layoutMode}
       />
     </div>
   );
@@ -693,16 +800,19 @@ const ArticleBody = memo(function ArticleBody({
   rootRef,
   onClick,
   onMouseUp,
+  layoutMode,
 }: {
   html: string;
   rootRef: React.RefObject<HTMLElement | null>;
   onClick: (event: React.MouseEvent<HTMLElement>) => void;
   onMouseUp: () => void;
+  layoutMode: RenditionLayout;
 }) {
   return (
     <article
       ref={rootRef}
       className="haddon-article"
+      data-layout-mode={layoutMode}
       onClick={onClick}
       onMouseUp={onMouseUp}
       dangerouslySetInnerHTML={{ __html: html }}
