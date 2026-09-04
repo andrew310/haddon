@@ -5,9 +5,10 @@ use super::{
     AsideDisposition, BlockNode, DocumentKind, DocumentNode, FigureBlock, InlineNode, LinkTarget,
     MediaKind, MediaNode, MediaSource, NodeBase, NodeSourceEvidence, NormalizedResource,
     NormalizedTextPoint, NormalizedTextRange, NoteKind, ObjectProjection, OmittedSource,
-    ResourceLink, SemanticRole, SourceDomPoint, SourceDomRange, SourceElementRef, SourceMapSegment,
-    SourceMapV1, SourceNodeRef, SourcePathStep, SourceTextNodeRef, SourceTextSpan, TextBlock,
-    TextBlockRole, TextDirection, TextOffset, TextTransform, WarningLevel, RESOURCE_SCHEMA,
+    ResourceLink, RubyAnnotation, SemanticRole, SourceDomPoint, SourceDomRange, SourceElementRef,
+    SourceMapSegment, SourceMapV1, SourceNodeRef, SourcePathStep, SourceTextNodeRef,
+    SourceTextSpan, TextBlock, TextBlockRole, TextDirection, TextOffset, TextTransform,
+    WarningLevel, RESOURCE_SCHEMA,
 };
 use crate::publication::{HaddonError, PublicationHref, Stage};
 use quick_xml::events::{BytesStart, Event};
@@ -245,8 +246,13 @@ impl<'a> Converter<'a> {
             "figcaption" => self.convert_text_block(element, inherited, TextBlockRole::Caption),
             "figure" => self.convert_figure(element, inherited),
             "blockquote" => self.convert_blockquote(element, inherited),
+            "pre" => self.convert_preformatted(element, inherited),
             "ul" | "ol" => self.convert_list(element, inherited),
             "li" => self.convert_list_item(element, inherited),
+            "dl" => self.convert_definition_list(element, inherited),
+            "dt" => self.convert_text_block(element, inherited, TextBlockRole::Term),
+            "dd" => self.convert_definition(element, inherited),
+            "table" => self.convert_table(element, inherited),
             "img" => self.convert_media_block(element, inherited),
             "hr" => {
                 let mut base = self.node_base(element, "thematicBreak", inherited, None)?;
@@ -315,9 +321,87 @@ impl<'a> Converter<'a> {
         inherited: &Inherited,
     ) -> Result<BlockNode, HaddonError> {
         if looks_like_inline_container(element) {
-            return self.convert_text_block(element, inherited, TextBlockRole::Quote { cite: None });
+            let cite = element.cite.as_deref().map(|cite_href| LinkTarget {
+                href: self.resolve_resource_href(cite_href),
+                external: !PublicationHref::resolve(&self.href, cite_href).is_ok(),
+                media_type: None,
+                title: None,
+                rels: Vec::new(),
+            });
+            return self.convert_text_block(element, inherited, TextBlockRole::Quote { cite });
         }
         let next = self.next_inherited(element, inherited);
+        let mut base = self.node_base(element, "section", inherited, None)?;
+        apply_block_semantics(&mut base, element, inherited);
+        let children = self.convert_flow(&element.children, element, &next)?;
+        Ok(BlockNode::Section { base, children })
+    }
+
+    fn convert_preformatted(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<BlockNode, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        
+        // Check if this is a <pre><code> pattern for code blocks
+        if let Some(code_element) = find_child(element, "code") {
+            let language_hint = code_element.class_names.first().and_then(|class| {
+                if class.starts_with("language-") {
+                    Some(class["language-".len()..].to_string())
+                } else if class.starts_with("lang-") {
+                    Some(class["lang-".len()..].to_string())
+                } else {
+                    None
+                }
+            });
+            let inlines = self.convert_inlines(&code_element.children, code_element, &next)?;
+            let mut block = self.make_text_block(
+                element,
+                inherited,
+                TextBlockRole::Code { language_hint },
+                inlines,
+                None,
+            )?;
+            self.finalize_preformatted_text_block(&mut block);
+            return Ok(BlockNode::TextBlock(block));
+        }
+        
+        // Plain preformatted text
+        let inlines = self.convert_inlines(&element.children, element, &next)?;
+        let mut block = self.make_text_block(
+            element,
+            inherited,
+            TextBlockRole::Preformatted,
+            inlines,
+            None,
+        )?;
+        self.finalize_preformatted_text_block(&mut block);
+        Ok(BlockNode::TextBlock(block))
+    }
+
+    fn convert_definition_list(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<BlockNode, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        let mut base = self.node_base(element, "section", inherited, None)?;
+        apply_block_semantics(&mut base, element, inherited);
+        let children = self.convert_flow(&element.children, element, &next)?;
+        Ok(BlockNode::Section { base, children })
+    }
+
+    fn convert_definition(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<BlockNode, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        if looks_like_inline_container(element) {
+            return self.convert_text_block(element, inherited, TextBlockRole::Definition);
+        }
+        // dd with block children becomes a section
         let mut base = self.node_base(element, "section", inherited, None)?;
         apply_block_semantics(&mut base, element, inherited);
         let children = self.convert_flow(&element.children, element, &next)?;
@@ -365,6 +449,149 @@ impl<'a> Converter<'a> {
         apply_block_semantics(&mut base, element, inherited);
         let children = self.convert_flow(&element.children, element, &next)?;
         Ok(BlockNode::ListItem { base, children })
+    }
+
+    fn convert_table(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<BlockNode, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        let mut base = self.node_base(element, "table", inherited, None)?;
+        apply_block_semantics(&mut base, element, inherited);
+        let mut children = Vec::new();
+        
+        for child in &element.children {
+            match child {
+                ParsedNode::Text { text, .. } if is_whitespace_only(text) => {}
+                ParsedNode::Element(child_elem) => {
+                    match child_elem.local_name.as_str() {
+                        "thead" | "tbody" | "tfoot" | "tr" => {
+                            if let Ok(section) = self.convert_table_section(child_elem, &next) {
+                                children.push(section);
+                            }
+                        }
+                        _ if is_omitted(child_elem) || child_elem.is_hidden() => {}
+                        _ => {}
+                    }
+                }
+                _ => {}
+            }
+        }
+        
+        Ok(BlockNode::Table { base, children })
+    }
+
+    fn convert_table_section(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<BlockNode, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        let section_kind = match element.local_name.as_str() {
+            "thead" => "head",
+            "tfoot" => "foot",
+            "tr" => "body",  // implicit tbody
+            _ => "body",
+        };
+        
+        let mut base = self.node_base(element, "tableSection", inherited, None)?;
+        apply_block_semantics(&mut base, element, inherited);
+        
+        let mut children = Vec::new();
+        if element.local_name == "tr" {
+            // Direct tr without tbody
+            if let Ok(row) = self.convert_table_row(element, &next) {
+                children.push(row);
+            }
+        } else {
+            for child in &element.children {
+                match child {
+                    ParsedNode::Text { text, .. } if is_whitespace_only(text) => {}
+                    ParsedNode::Element(child_elem) if child_elem.local_name == "tr" => {
+                        if let Ok(row) = self.convert_table_row(child_elem, &next) {
+                            children.push(row);
+                        }
+                    }
+                    ParsedNode::Element(child_elem)
+                        if is_omitted(child_elem) || child_elem.is_hidden() => {}
+                    _ => {}
+                }
+            }
+        }
+        
+        Ok(BlockNode::TableSection {
+            base,
+            section: section_kind.to_string(),
+            children,
+        })
+    }
+
+    fn convert_table_row(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<BlockNode, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        let mut base = self.node_base(element, "tableRow", inherited, None)?;
+        apply_block_semantics(&mut base, element, inherited);
+        
+        let mut children = Vec::new();
+        for child in &element.children {
+            match child {
+                ParsedNode::Text { text, .. } if is_whitespace_only(text) => {}
+                ParsedNode::Element(child_elem)
+                    if child_elem.local_name == "td" || child_elem.local_name == "th" =>
+                {
+                    if let Ok(cell) = self.convert_table_cell(child_elem, &next) {
+                        children.push(cell);
+                    }
+                }
+                ParsedNode::Element(child_elem)
+                    if is_omitted(child_elem) || child_elem.is_hidden() => {}
+                _ => {}
+            }
+        }
+        
+        Ok(BlockNode::TableRow { base, children })
+    }
+
+    fn convert_table_cell(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<BlockNode, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        let mut base = self.node_base(element, "tableCell", inherited, None)?;
+        apply_block_semantics(&mut base, element, inherited);
+        
+        let header = element.local_name == "th";
+        let colspan = element
+            .colspan
+            .as_ref()
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(1);
+        let rowspan = element
+            .rowspan
+            .as_ref()
+            .and_then(|s| s.parse::<u32>().ok())
+            .unwrap_or(1);
+        let headers = element
+            .headers
+            .as_ref()
+            .map(|h| h.split_whitespace().map(String::from).collect())
+            .unwrap_or_default();
+        
+        let children = self.convert_flow(&element.children, element, &next)?;
+        
+        Ok(BlockNode::TableCell {
+            base,
+            header,
+            colspan,
+            rowspan,
+            headers,
+            children,
+        })
     }
 
     fn convert_figure(
@@ -562,6 +789,37 @@ impl<'a> Converter<'a> {
                 base: self.inline_base(element, "strong", inherited)?,
                 children: self.convert_inlines(&element.children, element, &next)?,
             }]),
+            "code" => Ok(vec![InlineNode::Code {
+                base: self.inline_base(element, "code", inherited)?,
+                children: self.convert_inlines(&element.children, element, &next)?,
+            }]),
+            "sub" => Ok(vec![InlineNode::Subscript {
+                base: self.inline_base(element, "subscript", inherited)?,
+                children: self.convert_inlines(&element.children, element, &next)?,
+            }]),
+            "sup" => Ok(vec![InlineNode::Superscript {
+                base: self.inline_base(element, "superscript", inherited)?,
+                children: self.convert_inlines(&element.children, element, &next)?,
+            }]),
+            "mark" => Ok(vec![InlineNode::Mark {
+                base: self.inline_base(element, "mark", inherited)?,
+                children: self.convert_inlines(&element.children, element, &next)?,
+            }]),
+            "s" | "del" | "strike" => Ok(vec![InlineNode::Strikethrough {
+                base: self.inline_base(element, "strikethrough", inherited)?,
+                children: self.convert_inlines(&element.children, element, &next)?,
+            }]),
+            "q" => {
+                let cite = element.cite.as_deref().map(|cite_href| {
+                    self.resolve_resource_href(cite_href)
+                });
+                Ok(vec![InlineNode::Quote {
+                    base: self.inline_base(element, "quote", inherited)?,
+                    cite,
+                    children: self.convert_inlines(&element.children, element, &next)?,
+                }])
+            }
+            "ruby" => self.convert_ruby(element, inherited),
             "span" if keeps_span(element) => Ok(vec![InlineNode::Span {
                 base: self.inline_base(element, "span", inherited)?,
                 children: self.convert_inlines(&element.children, element, &next)?,
@@ -604,6 +862,70 @@ impl<'a> Converter<'a> {
         }
     }
 
+    fn convert_ruby(
+        &mut self,
+        element: &ParsedElement,
+        inherited: &Inherited,
+    ) -> Result<Vec<InlineNode>, HaddonError> {
+        let next = self.next_inherited(element, inherited);
+        let mut base = self.inline_base(element, "ruby", inherited)?;
+        apply_roles(&mut base, element);
+        
+        let mut base_children = Vec::new();
+        let mut annotations = Vec::new();
+        
+        for child in &element.children {
+            match child {
+                ParsedNode::Text { .. } => {
+                    base_children.extend(self.convert_inlines(&[child.clone()], element, &next)?);
+                }
+                ParsedNode::Element(child_elem) => {
+                    match child_elem.local_name.as_str() {
+                        "rb" => {
+                            base_children.extend(
+                                self.convert_inlines(&child_elem.children, child_elem, &next)?
+                            );
+                        }
+                        "rt" => {
+                            let annotation_text = self.convert_inlines(&child_elem.children, child_elem, &next)?;
+                            annotations.push(RubyAnnotation {
+                                text: annotation_text,
+                                position: None,
+                            });
+                        }
+                        "rtc" => {
+                            for rt_child in &child_elem.children {
+                                if let ParsedNode::Element(rt_elem) = rt_child {
+                                    if rt_elem.local_name == "rt" {
+                                        let annotation_text = self.convert_inlines(&rt_elem.children, rt_elem, &next)?;
+                                        annotations.push(RubyAnnotation {
+                                            text: annotation_text,
+                                            position: None,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        "rp" => {
+                            // Ruby parentheses are excluded from normalized text
+                        }
+                        _ => {
+                            base_children.extend(
+                                self.convert_inlines(&child_elem.children, child_elem, &next)?
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        
+        Ok(vec![InlineNode::Ruby {
+            base,
+            base_text: base_children,
+            annotations,
+        }])
+    }
+
     fn convert_text_inline(
         &mut self,
         parent: &ParsedElement,
@@ -638,6 +960,29 @@ impl<'a> Converter<'a> {
         prune_empty_text_inlines(&mut block.inlines);
         block.text = project_inlines(&block.inlines);
         emit_text_segments(&mut self.segments, &block.base.id, &raws, &collapsed);
+    }
+
+    fn finalize_preformatted_text_block(&mut self, block: &mut TextBlock) {
+        // Preformatted text preserves whitespace as-is, no collapsing
+        block.text = project_inlines(&block.inlines);
+        
+        // Emit identity segments for preformatted text
+        let raws = collect_raw_text_inlines(&block.inlines);
+        let mut offset = 0u64;
+        for raw in &raws {
+            let length = utf16_len(&raw.text);
+            if length > 0 {
+                self.segments.push(SourceMapSegment::Text {
+                    normalized: NormalizedTextRange::new(&block.base.id, offset, offset + length),
+                    source: SourceTextSpan {
+                        parts: vec![dom_range(&raw.node, 0, length)],
+                    },
+                    transform: TextTransform::Identity,
+                    alignment: None,
+                });
+                offset += length;
+            }
+        }
     }
 
     fn inline_base(
@@ -983,9 +1328,13 @@ fn is_flow_block_name(name: &str) -> bool {
             | "figcaption"
             | "div"
             | "blockquote"
+            | "pre"
             | "ul"
             | "ol"
             | "li"
+            | "dl"
+            | "dt"
+            | "dd"
             | "table"
             | "hr"
             | "img"
@@ -1226,6 +1575,11 @@ struct ParsedElement {
     title: Option<String>,
     aria_label: Option<String>,
     rel: Option<String>,
+    cite: Option<String>,
+    colspan: Option<String>,
+    rowspan: Option<String>,
+    headers: Option<String>,
+    class_names: Vec<String>,
     hidden: bool,
     aria_hidden: bool,
     children: Vec<ParsedNode>,
@@ -1361,6 +1715,11 @@ fn start_element(
             title: attrs.title,
             aria_label: attrs.aria_label,
             rel: attrs.rel,
+            cite: attrs.cite,
+            colspan: attrs.colspan,
+            rowspan: attrs.rowspan,
+            headers: attrs.headers,
+            class_names: attrs.class_names,
             hidden: attrs.hidden,
             aria_hidden: attrs.aria_hidden,
             children: Vec::new(),
@@ -1383,6 +1742,11 @@ struct Attrs {
     title: Option<String>,
     aria_label: Option<String>,
     rel: Option<String>,
+    cite: Option<String>,
+    colspan: Option<String>,
+    rowspan: Option<String>,
+    headers: Option<String>,
+    class_names: Vec<String>,
     hidden: bool,
     aria_hidden: bool,
     xmlns: Option<String>,
@@ -1414,6 +1778,11 @@ fn parse_attrs(event: &BytesStart<'_>) -> Attrs {
             "alt" => attrs.alt = Some(value),
             "title" => attrs.title = Some(value),
             "rel" => attrs.rel = Some(value),
+            "cite" => attrs.cite = Some(value),
+            "colspan" => attrs.colspan = Some(value),
+            "rowspan" => attrs.rowspan = Some(value),
+            "headers" => attrs.headers = Some(value),
+            "class" => attrs.class_names = value.split_whitespace().map(str::to_string).collect(),
             "label" if key.contains("aria-label") => attrs.aria_label = Some(value),
             "hidden" => attrs.hidden = true,
             "xmlns" if key == "xmlns" => attrs.xmlns = Some(value),

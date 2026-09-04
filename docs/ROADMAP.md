@@ -124,7 +124,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-022 — Implement the semantic HTML normalizer
 
-- [ ] Normalize sections, headings, paragraphs, lists, quotations, code, tables, figures, captions, links, notes, inline semantics, language, direction, ruby, and media references.
+- [x] Normalize sections, headings, paragraphs, lists, quotations, code, tables, figures, captions, links, notes, inline semantics, language, direction, ruby, and media references.
 - **Depends on:** HADDON-013, HADDON-017, HADDON-021
 - **Acceptance:** supported semantics and source mappings survive malformed but recoverable HTML; unsupported constructs produce structured warnings.
 

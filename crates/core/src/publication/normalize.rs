@@ -58,10 +58,25 @@ pub(super) fn normalization_capability() -> CapabilityDescriptor {
             "xhtml-ast".to_string(),
             "source-map".to_string(),
             "deterministic-ids".to_string(),
+            "sections".to_string(),
+            "headings".to_string(),
+            "paragraphs".to_string(),
+            "lists".to_string(),
+            "tables".to_string(),
+            "figures".to_string(),
+            "blockquotes".to_string(),
+            "code-blocks".to_string(),
+            "definition-lists".to_string(),
+            "links".to_string(),
+            "note-references".to_string(),
+            "inline-semantics".to_string(),
+            "ruby".to_string(),
+            "language".to_string(),
+            "direction".to_string(),
         ],
         limitations: vec![CapabilityLimitation {
-            code: "haddon.normalization.fixture-vocabulary".to_string(),
-            message: "lists, tables, ruby, MathML, and CSS-hidden prose are out of scope for this revision"
+            code: "haddon.normalization.v1-vocabulary".to_string(),
+            message: "MathML, SVG content, embedded objects, and CSS-generated content are not yet normalized"
                 .to_string(),
             href: None,
         }],
@@ -547,6 +562,29 @@ pub enum BlockNode {
         base: NodeBase,
         children: Vec<BlockNode>,
     },
+    #[serde(rename = "tableSection")]
+    TableSection {
+        #[serde(flatten)]
+        base: NodeBase,
+        section: String,
+        children: Vec<BlockNode>,
+    },
+    #[serde(rename = "tableRow")]
+    TableRow {
+        #[serde(flatten)]
+        base: NodeBase,
+        children: Vec<BlockNode>,
+    },
+    #[serde(rename = "tableCell")]
+    TableCell {
+        #[serde(flatten)]
+        base: NodeBase,
+        header: bool,
+        colspan: u32,
+        rowspan: u32,
+        headers: Vec<String>,
+        children: Vec<BlockNode>,
+    },
     #[serde(rename = "aside")]
     Aside(AsideBlock),
     #[serde(rename = "thematicBreak")]
@@ -589,6 +627,9 @@ impl BlockNode {
             | Self::List { base, .. }
             | Self::ListItem { base, .. }
             | Self::Table { base, .. }
+            | Self::TableSection { base, .. }
+            | Self::TableRow { base, .. }
+            | Self::TableCell { base, .. }
             | Self::ThematicBreak { base, .. }
             | Self::PageBreak { base, .. }
             | Self::OpaqueBlock { base, .. }
@@ -635,6 +676,9 @@ impl BlockNode {
             | Self::List { children, .. }
             | Self::ListItem { children, .. }
             | Self::Table { children, .. }
+            | Self::TableSection { children, .. }
+            | Self::TableRow { children, .. }
+            | Self::TableCell { children, .. }
             | Self::OpaqueBlock { children, .. } => {
                 for child in children {
                     child.walk(visit);
@@ -819,6 +863,44 @@ pub enum InlineNode {
         base: NodeBase,
         children: Vec<InlineNode>,
     },
+    #[serde(rename = "code")]
+    Code {
+        #[serde(flatten)]
+        base: NodeBase,
+        children: Vec<InlineNode>,
+    },
+    #[serde(rename = "subscript")]
+    Subscript {
+        #[serde(flatten)]
+        base: NodeBase,
+        children: Vec<InlineNode>,
+    },
+    #[serde(rename = "superscript")]
+    Superscript {
+        #[serde(flatten)]
+        base: NodeBase,
+        children: Vec<InlineNode>,
+    },
+    #[serde(rename = "strikethrough")]
+    Strikethrough {
+        #[serde(flatten)]
+        base: NodeBase,
+        children: Vec<InlineNode>,
+    },
+    #[serde(rename = "mark")]
+    Mark {
+        #[serde(flatten)]
+        base: NodeBase,
+        children: Vec<InlineNode>,
+    },
+    #[serde(rename = "quote")]
+    Quote {
+        #[serde(flatten)]
+        base: NodeBase,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        cite: Option<String>,
+        children: Vec<InlineNode>,
+    },
     #[serde(rename = "span")]
     Span {
         #[serde(flatten)]
@@ -839,6 +921,13 @@ pub enum InlineNode {
         target: LinkTarget,
         note_kind: NoteKind,
         children: Vec<InlineNode>,
+    },
+    #[serde(rename = "ruby")]
+    Ruby {
+        #[serde(flatten)]
+        base: NodeBase,
+        base_text: Vec<InlineNode>,
+        annotations: Vec<RubyAnnotation>,
     },
     #[serde(rename = "lineBreak")]
     LineBreak {
@@ -862,15 +951,30 @@ pub enum InlineNode {
     },
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RubyAnnotation {
+    pub text: Vec<InlineNode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<String>,
+}
+
 impl InlineNode {
     pub fn base(&self) -> &NodeBase {
         match self {
             Self::Text { base, .. }
             | Self::Emphasis { base, .. }
             | Self::Strong { base, .. }
+            | Self::Code { base, .. }
+            | Self::Subscript { base, .. }
+            | Self::Superscript { base, .. }
+            | Self::Strikethrough { base, .. }
+            | Self::Mark { base, .. }
+            | Self::Quote { base, .. }
             | Self::Span { base, .. }
             | Self::Link { base, .. }
             | Self::NoteReference { base, .. }
+            | Self::Ruby { base, .. }
             | Self::LineBreak { base, .. }
             | Self::OpaqueInline { base, .. }
             | Self::UnsupportedInline { base, .. } => base,
@@ -882,11 +986,18 @@ impl InlineNode {
         match self {
             Self::Emphasis { children, .. }
             | Self::Strong { children, .. }
+            | Self::Code { children, .. }
+            | Self::Subscript { children, .. }
+            | Self::Superscript { children, .. }
+            | Self::Strikethrough { children, .. }
+            | Self::Mark { children, .. }
+            | Self::Quote { children, .. }
             | Self::Span { children, .. }
             | Self::Link { children, .. }
             | Self::NoteReference { children, .. }
             | Self::OpaqueInline { children, .. }
             | Self::UnsupportedInline { children, .. } => children,
+            Self::Ruby { base_text, .. } => base_text,
             Self::Text { .. } | Self::LineBreak { .. } | Self::MediaInline(_) => &[],
         }
     }
@@ -895,11 +1006,18 @@ impl InlineNode {
         match self {
             Self::Emphasis { children, .. }
             | Self::Strong { children, .. }
+            | Self::Code { children, .. }
+            | Self::Subscript { children, .. }
+            | Self::Superscript { children, .. }
+            | Self::Strikethrough { children, .. }
+            | Self::Mark { children, .. }
+            | Self::Quote { children, .. }
             | Self::Span { children, .. }
             | Self::Link { children, .. }
             | Self::NoteReference { children, .. }
             | Self::OpaqueInline { children, .. }
             | Self::UnsupportedInline { children, .. } => Some(children),
+            Self::Ruby { base_text, .. } => Some(base_text),
             Self::Text { .. } | Self::LineBreak { .. } | Self::MediaInline(_) => None,
         }
     }
@@ -932,6 +1050,7 @@ impl InlineNode {
             Self::Text { text, .. } => utf16_len(text),
             Self::LineBreak { .. } => 1,
             Self::MediaInline(_) => 1,
+            Self::Ruby { base_text, .. } => base_text.iter().map(Self::projected_len).sum(),
             Self::UnsupportedInline { children, .. } if children.is_empty() => 1,
             other => other.children().iter().map(Self::projected_len).sum(),
         }
@@ -941,6 +1060,13 @@ impl InlineNode {
         visit(self);
         for child in self.children() {
             child.walk(visit);
+        }
+        if let Self::Ruby { annotations, .. } = self {
+            for annotation in annotations {
+                for child in &annotation.text {
+                    child.walk(visit);
+                }
+            }
         }
     }
 }
@@ -953,6 +1079,10 @@ pub fn project_inlines(inlines: &[InlineNode]) -> String {
                 InlineNode::Text { text, .. } => out.push_str(text),
                 InlineNode::LineBreak { .. } => out.push('\n'),
                 InlineNode::MediaInline(_) => out.push('\u{FFFC}'),
+                InlineNode::Ruby { base_text, .. } => {
+                    // Ruby: only base text contributes to primary projection
+                    walk(base_text, out);
+                }
                 InlineNode::UnsupportedInline { children, .. } if children.is_empty() => {
                     out.push('\u{FFFC}')
                 }
