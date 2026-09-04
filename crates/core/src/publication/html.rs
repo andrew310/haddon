@@ -84,11 +84,76 @@ fn render_block(out: &mut String, block: &BlockNode) {
             out.push_str("</div>");
         }
         BlockNode::Table { base, children } => {
-            open_tag(out, "div", &base.id, source_fragment_id(&base.source));
+            open_tag(out, "table", &base.id, source_fragment_id(&base.source));
             for child in children {
                 render_block(out, child);
             }
-            out.push_str("</div>");
+            out.push_str("</table>");
+        }
+        BlockNode::TableSection {
+            base,
+            section,
+            children,
+        } => {
+            let tag = match section.as_str() {
+                "head" => "thead",
+                "foot" => "tfoot",
+                _ => "tbody",
+            };
+            open_tag(out, tag, &base.id, source_fragment_id(&base.source));
+            for child in children {
+                render_block(out, child);
+            }
+            out.push_str("</");
+            out.push_str(tag);
+            out.push('>');
+        }
+        BlockNode::TableRow { base, children } => {
+            open_tag(out, "tr", &base.id, source_fragment_id(&base.source));
+            for child in children {
+                render_block(out, child);
+            }
+            out.push_str("</tr>");
+        }
+        BlockNode::TableCell {
+            base,
+            header,
+            colspan,
+            rowspan,
+            headers,
+            children,
+        } => {
+            let tag = if *header { "th" } else { "td" };
+            out.push('<');
+            out.push_str(tag);
+            write_id_attrs(out, &base.id, source_fragment_id(&base.source));
+            if *colspan > 1 {
+                out.push_str(" colspan=\"");
+                out.push_str(&colspan.to_string());
+                out.push('"');
+            }
+            if *rowspan > 1 {
+                out.push_str(" rowspan=\"");
+                out.push_str(&rowspan.to_string());
+                out.push('"');
+            }
+            if !headers.is_empty() {
+                out.push_str(" headers=\"");
+                for (i, header_id) in headers.iter().enumerate() {
+                    if i > 0 {
+                        out.push(' ');
+                    }
+                    push_escaped(out, header_id);
+                }
+                out.push('"');
+            }
+            out.push('>');
+            for child in children {
+                render_block(out, child);
+            }
+            out.push_str("</");
+            out.push_str(tag);
+            out.push('>');
         }
     }
 }
@@ -174,6 +239,59 @@ fn render_inline(out: &mut String, inline: &InlineNode) {
         }
         InlineNode::Strong { base, children } => {
             wrap_inlines(out, "strong", &base.id, children);
+        }
+        InlineNode::Code { base, children } => {
+            wrap_inlines(out, "code", &base.id, children);
+        }
+        InlineNode::Subscript { base, children } => {
+            wrap_inlines(out, "sub", &base.id, children);
+        }
+        InlineNode::Superscript { base, children } => {
+            wrap_inlines(out, "sup", &base.id, children);
+        }
+        InlineNode::Strikethrough { base, children } => {
+            wrap_inlines(out, "s", &base.id, children);
+        }
+        InlineNode::Mark { base, children } => {
+            wrap_inlines(out, "mark", &base.id, children);
+        }
+        InlineNode::Quote {
+            base,
+            cite,
+            children,
+        } => {
+            out.push_str("<q");
+            write_id_attrs(out, &base.id, None);
+            if let Some(cite_url) = cite {
+                out.push_str(" cite=\"");
+                push_escaped(out, cite_url);
+                out.push('"');
+            }
+            out.push('>');
+            for child in children {
+                render_inline(out, child);
+            }
+            out.push_str("</q>");
+        }
+        InlineNode::Ruby {
+            base,
+            base_text,
+            annotations,
+        } => {
+            out.push_str("<ruby");
+            write_id_attrs(out, &base.id, None);
+            out.push('>');
+            for child in base_text {
+                render_inline(out, child);
+            }
+            for annotation in annotations {
+                out.push_str("<rt>");
+                for child in &annotation.text {
+                    render_inline(out, child);
+                }
+                out.push_str("</rt>");
+            }
+            out.push_str("</ruby>");
         }
         InlineNode::Span { base, children } => {
             out.push_str("<span");

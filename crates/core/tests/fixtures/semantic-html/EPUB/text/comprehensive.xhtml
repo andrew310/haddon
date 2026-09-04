@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="en" lang="en">
+  <head>
+    <title>Comprehensive Semantic HTML Test</title>
+  </head>
+  <body>
+    <section id="test-section">
+      <h1 id="main-heading">Semantic HTML Features</h1>
+      
+      <!-- Lists -->
+      <h2 id="lists-heading">Lists</h2>
+      <ul id="unordered-list">
+        <li id="item-1">First unordered item</li>
+        <li id="item-2">Second unordered item</li>
+      </ul>
+      
+      <ol id="ordered-list">
+        <li id="item-3">First ordered item</li>
+        <li id="item-4">Second ordered item</li>
+      </ol>
+      
+      <dl id="definition-list">
+        <dt id="term-1">Term 1</dt>
+        <dd id="def-1">Definition 1</dd>
+        <dt id="term-2">Term 2</dt>
+        <dd id="def-2">Definition 2 with <em>emphasis</em></dd>
+      </dl>
+      
+      <!-- Tables -->
+      <h2 id="tables-heading">Tables</h2>
+      <table id="data-table">
+        <thead>
+          <tr>
+            <th id="header-1">Header 1</th>
+            <th id="header-2">Header 2</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td headers="header-1">Cell 1</td>
+            <td headers="header-2">Cell 2</td>
+          </tr>
+          <tr>
+            <td headers="header-1">Cell 3</td>
+            <td headers="header-2" colspan="1">Cell 4</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <!-- Quotations -->
+      <h2 id="quotes-heading">Quotations</h2>
+      <blockquote id="block-quote" cite="https://example.com/source">This is a block quotation with cite attribute.</blockquote>
+      
+      <p id="inline-quote-para">She said <q id="inline-quote" cite="https://example.com/dialogue">Hello world</q> and left.</p>
+      
+      <!-- Code -->
+      <h2 id="code-heading">Code Blocks</h2>
+      <pre id="code-block"><code class="language-rust" id="rust-code">fn main() {
+    println!("Hello, world!");
+}</code></pre>
+      
+      <p id="inline-code-para">Use the <code id="inline-code">println!</code> macro for output.</p>
+      
+      <!-- Ruby -->
+      <h2 id="ruby-heading">Ruby Annotation</h2>
+      <p id="ruby-para">The Japanese word <ruby id="ruby-1"><rb>漢字</rb><rt>かんじ</rt></ruby> means Chinese characters.</p>
+      
+      <!-- More inline semantics -->
+      <h2 id="inline-heading">Inline Semantics</h2>
+      <p id="inline-semantics-para">
+        Text with <sub id="subscript">subscript</sub> and <sup id="superscript">superscript</sup>.
+        Also <mark id="marked">marked text</mark> and <s id="strikethrough">strikethrough</s>.
+      </p>
+    </section>
+  </body>
+</html>
