@@ -238,7 +238,12 @@ impl<'a> Converter<'a> {
             name if name == "p" && is_note_body(element) => {
                 self.convert_aside(element, inherited, aside_disposition(element))
             }
-            "p" => self.convert_text_block(element, inherited, TextBlockRole::Paragraph),
+            "p" => {
+                let role = heading_role_from_classes(&element.class_names)
+                    .map(|level| TextBlockRole::Heading { level })
+                    .unwrap_or(TextBlockRole::Paragraph);
+                self.convert_text_block(element, inherited, role)
+            }
             "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
                 let level = element.local_name[1..].parse::<u32>().unwrap_or(1);
                 self.convert_text_block(element, inherited, TextBlockRole::Heading { level })
@@ -1837,4 +1842,57 @@ fn assign_text_indices(element: &mut ParsedElement) {
         }
     }
     number_all(element);
+}
+
+/// Publisher EPUBs often fake headings with `<p class="h2">` / `ct` instead of `h1`–`h6`.
+fn heading_role_from_classes(class_names: &[String]) -> Option<u32> {
+    for class in class_names {
+        let class = class.to_ascii_lowercase();
+        match class.as_str() {
+            "ct" | "cn" | "chapter-title" | "chaptertitle" | "title" => return Some(1),
+            "subtitle" | "st" => return Some(2),
+            _ => {}
+        }
+        if let Some(level) = parse_heading_class(&class) {
+            return Some(level);
+        }
+    }
+    None
+}
+
+fn parse_heading_class(class: &str) -> Option<u32> {
+    let rest = class.strip_prefix("heading").or_else(|| class.strip_prefix('h'))?;
+    let mut chars = rest.chars();
+    let first = chars.next()?;
+    let level = first.to_digit(10)?;
+    if !(1..=6).contains(&level) {
+        return None;
+    }
+    let suffix: String = chars.collect();
+    if suffix.is_empty() || suffix.chars().all(|c| c.is_ascii_alphabetic()) {
+        Some(level)
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{heading_role_from_classes, parse_heading_class};
+
+    #[test]
+    fn maps_indesign_heading_classes() {
+        assert_eq!(parse_heading_class("h2"), Some(2));
+        assert_eq!(parse_heading_class("h2k"), Some(2));
+        assert_eq!(parse_heading_class("h1c"), Some(1));
+        assert_eq!(parse_heading_class("heading3"), Some(3));
+        assert_eq!(parse_heading_class("h20"), None);
+        assert_eq!(parse_heading_class("html"), None);
+        assert_eq!(
+            heading_role_from_classes(&["sgc-1".into(), "h2".into()]),
+            Some(2)
+        );
+        assert_eq!(heading_role_from_classes(&["ct".into()]), Some(1));
+        assert_eq!(heading_role_from_classes(&["tx".into()]), None);
+    }
 }

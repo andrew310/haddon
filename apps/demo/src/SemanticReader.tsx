@@ -13,7 +13,6 @@ import {
   isSampleHref,
 } from "./citationLink";
 import { citationFromDomSelection, locatorFromDomSelection } from "./selectionCitation";
-import { openCitation } from "../../../packages/haddon-citation-router/open-citation";
 import { VisibilityTracker } from "../../../packages/haddon-navigator/src/visibility-tracker";
 import { DecorationManager, type Decoration } from "../../../packages/haddon-navigator/src/decoration-manager";
 import { applyLayoutMode, scrollToElement, type LayoutModeOptions } from "../../../packages/haddon-navigator/src/layout-modes";
@@ -22,6 +21,15 @@ import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1, Rend
 import { SourceDrawer } from "./SourceDrawer";
 import { SelectionChip, type HighlightColor } from "./SelectionChip";
 import { MarginNote } from "./MarginNote";
+import { enrichReadingOrderWithToc, type ReadingItem, type TocEntry } from "./toc";
+import {
+  emptyAnnotations,
+  loadAnnotations,
+  saveAnnotations,
+  type AnnotationStoreV1,
+  type MarginNoteRecord,
+} from "./annotations";
+import "./SemanticReader.css";
 
 type SearchHit = {
   href: string;
@@ -61,22 +69,24 @@ function highlightSnippet(snippet: string, query: string): JSX.Element {
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
 
-type ReadingItem = {
-  href: string;
-  title?: string | null;
-  mediaType?: string;
-};
-
 type Props = {
   session: PublicationSession;
   initialCitation?: CitationQuery | null;
   allowDeepLinks?: boolean;
+  storageKey?: string;
+  onAnnotationsChange?: (store: AnnotationStoreV1) => void;
+  debugLocation?: boolean;
+  showMarginNotes?: boolean;
 };
 
 export default function SemanticReader({
   session,
   initialCitation,
   allowDeepLinks = false,
+  storageKey,
+  onAnnotationsChange,
+  debugLocation = false,
+  showMarginNotes = true,
 }: Props) {
   const rootRef = useRef<HTMLElement | null>(null);
   const blobUrls = useRef<string[]>([]);
@@ -109,13 +119,25 @@ export default function SemanticReader({
   const [layoutMode, setLayoutMode] = useState<RenditionLayout>("scrolled");
   const capturedLocationBeforeSwitch = useRef<PublicationLocatorV1 | null>(null);
   const [showSelectionChip, setShowSelectionChip] = useState(false);
-  const [marginNotes, setMarginNotes] = useState<Array<{
-    id: string;
-    locator: PublicationLocatorV1;
-    quote: string;
-    content: string;
-    highlightId?: string;
-  }>>([]);
+  const [marginNotes, setMarginNotes] = useState<MarginNoteRecord[]>([]);
+  const onAnnotationsChangeRef = useRef(onAnnotationsChange);
+  onAnnotationsChangeRef.current = onAnnotationsChange;
+  const persistAnnotations = useCallback(
+    (notes: MarginNoteRecord[], currentHref: string | null) => {
+      const store: AnnotationStoreV1 = {
+        schema: "haddon.annotations",
+        version: 1,
+        href: currentHref,
+        highlights: [...decorationManager.current.getDecorationsByGroup("highlights")],
+        notes,
+      };
+      if (storageKey) {
+        saveAnnotations(storageKey, store);
+      }
+      onAnnotationsChangeRef.current?.(store);
+    },
+    [storageKey],
+  );
 
   const { refs: selectionChipRefs, floatingStyles: selectionChipStyles } = useFloating({
     placement: "top",
@@ -290,21 +312,46 @@ export default function SemanticReader({
     [allowDeepLinks, session, showHref],
   );
 
+  const showHrefRef = useRef(showHref);
+  showHrefRef.current = showHref;
+  const applyCitationRef = useRef(applyCitation);
+  applyCitationRef.current = applyCitation;
+
   useEffect(() => {
+    decorationManager.current = new DecorationManager();
     try {
       const items = JSON.parse(session.reading_order_json()) as ReadingItem[];
-      setChapters(items);
+      let toc: TocEntry[] = [];
+      try {
+        const withToc = session as PublicationSession & { toc_json?: () => string };
+        toc = JSON.parse(withToc.toc_json?.() ?? "[]") as TocEntry[];
+      } catch {
+        toc = [];
+      }
+      setChapters(enrichReadingOrderWithToc(items, toc));
     } catch {
       setChapters([]);
     }
+
+    const stored = storageKey ? loadAnnotations(storageKey) : emptyAnnotations();
+    for (const decoration of stored.highlights) {
+      decorationManager.current.setDecoration(decoration);
+    }
+    setMarginNotes(stored.notes);
+    onAnnotationsChangeRef.current?.(stored);
+
     if (initialCitation) {
       if (!openedCitation.current) {
         openedCitation.current = true;
-        applyCitation(initialCitation, true);
+        applyCitationRef.current(initialCitation, true);
       }
     } else {
-      const first = session.first_linear_href();
-      if (first) showHref(first);
+      try {
+        const first = stored.href || session.first_linear_href();
+        if (first) showHrefRef.current(first);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     }
     return () => {
       openedCitation.current = false;
@@ -318,7 +365,12 @@ export default function SemanticReader({
         layoutCleanup.current = null;
       }
     };
-  }, [applyCitation, initialCitation, revokeBlobs, session, showHref]);
+  }, [
+    initialCitation,
+    revokeBlobs,
+    session,
+    storageKey,
+  ]);
 
   const resolveRelativeHref = useCallback(
     (currentHref: string, reference: string): string => {
@@ -493,8 +545,9 @@ export default function SemanticReader({
       // Position the selection chip using the native selection range
       const range = selection.getRangeAt(0);
       const rects = range.getClientRects();
-      if (rects.length > 0) {
-        const lastRect = rects[rects.length - 1];
+      const fallback = range.getBoundingClientRect();
+      const lastRect = rects.length > 0 ? rects[rects.length - 1] : fallback;
+      if (lastRect && lastRect.width + lastRect.height > 0) {
         const virtualReference = {
           getBoundingClientRect: () => lastRect,
         };
@@ -557,7 +610,8 @@ export default function SemanticReader({
     
     // Clear the active locator
     setActiveLocator(null);
-  }, [activeLocator, marginNotes]);
+    persistAnnotations(marginNotes, href);
+  }, [activeLocator, href, marginNotes, persistAnnotations]);
 
   const handleAskAI = useCallback(() => {
     const root = rootRef.current;
@@ -604,11 +658,13 @@ export default function SemanticReader({
       highlightId,
     };
     
-    setMarginNotes(prev => [...prev, newNote]);
+    const nextNotes = [...marginNotes, newNote];
+    setMarginNotes(nextNotes);
     
     // Clear the active locator
     setActiveLocator(null);
-  }, [activeLocator, activeCitation, marginNotes]);
+    persistAnnotations(nextNotes, href);
+  }, [activeLocator, activeCitation, href, marginNotes, persistAnnotations]);
 
   const handleRemoveNote = useCallback((noteId: string) => {
     const root = rootRef.current;
@@ -616,15 +672,16 @@ export default function SemanticReader({
     // Find the note to get its associated highlight ID
     const note = marginNotes.find(n => n.id === noteId);
     
-    // Remove the note
-    setMarginNotes(prev => prev.filter(n => n.id !== noteId));
+    const nextNotes = marginNotes.filter((n) => n.id !== noteId);
+    setMarginNotes(nextNotes);
     
     // Remove the associated highlight decoration if it exists
     if (note?.highlightId && root) {
       decorationManager.current.removeDecoration(note.highlightId);
       decorationManager.current.applyDecorations(root);
     }
-  }, [marginNotes]);
+    persistAnnotations(nextNotes, href);
+  }, [href, marginNotes, persistAnnotations]);
 
   const performSearch = useCallback(() => {
     const trimmed = searchQuery.trim();
@@ -771,12 +828,22 @@ export default function SemanticReader({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Apply layout mode when it changes
+  // Apply layout and locator-backed decorations after React commits HTML.
   useEffect(() => {
-    if (html && rootRef.current) {
-      applyCurrentLayoutMode();
+    const root = rootRef.current;
+    if (!html || !root) return;
+    rewriteResources(root);
+    applyCurrentLayoutMode();
+    const result = decorationManager.current.applyDecorations(root);
+    if (result.warnings.length > 0) {
+      console.warn("[DecorationManager] Warnings:", result.warnings);
     }
-  }, [layoutMode, html, applyCurrentLayoutMode]);
+  }, [layoutMode, html, applyCurrentLayoutMode, rewriteResources]);
+
+  useEffect(() => {
+    if (!href || !storageKey) return;
+    persistAnnotations(marginNotes, href);
+  }, [href, marginNotes, persistAnnotations, storageKey]);
 
   return (
     <div className="semantic-reader">
@@ -909,7 +976,7 @@ export default function SemanticReader({
       )}
       {status && <p className="semantic-status">{status}</p>}
       {error && <p className="error">{error}</p>}
-      {visibleLocation && (
+      {debugLocation && visibleLocation && (
         <div className="visibility-debug" style={{ 
           position: "fixed", 
           bottom: "10px", 
@@ -922,7 +989,7 @@ export default function SemanticReader({
           maxWidth: "300px",
           zIndex: 1000,
         }}>
-          <div>📍 Location: {visibleLocation.current.href}</div>
+          <div>Location: {visibleLocation.current.href}</div>
           {visibleLocation.current.locations.normalized && (
             <div>
               Block: {visibleLocation.current.locations.normalized.start.blockId.substring(0, 20)}...
@@ -933,7 +1000,7 @@ export default function SemanticReader({
           <div>Segments: {visibleLocation.segments.length}</div>
         </div>
       )}
-      <div className={`reader-with-margin${marginNotes.length > 0 ? ' has-notes' : ''}`}>
+      <div className={`reader-with-margin${showMarginNotes && marginNotes.length > 0 ? ' has-notes' : ''}`}>
         <ArticleBody
           html={html}
           rootRef={rootRef}
@@ -941,18 +1008,20 @@ export default function SemanticReader({
           onMouseUp={captureSelection}
           layoutMode={layoutMode}
         />
-        <div className="margin-notes-container">
-          {marginNotes.map(note => (
-            <MarginNote
-              key={note.id}
-              articleRoot={rootRef.current}
-              locator={note.locator}
-              quote={note.quote}
-              content={note.content}
-              onClose={() => handleRemoveNote(note.id)}
-            />
-          ))}
-        </div>
+        {showMarginNotes ? (
+          <div className="margin-notes-container">
+            {marginNotes.map(note => (
+              <MarginNote
+                key={note.id}
+                articleRoot={rootRef.current}
+                locator={note.locator}
+                quote={note.quote}
+                content={note.content}
+                onClose={() => handleRemoveNote(note.id)}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
