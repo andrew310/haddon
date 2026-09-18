@@ -94,12 +94,20 @@ function parseSearchPayload(json: string): SearchPayload {
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
 
+export type ExplainPassageRequest = {
+  quote: string;
+  prefix?: string;
+  suffix?: string;
+  href?: string;
+};
+
 type Props = {
   session: PublicationSession;
   initialCitation?: CitationQuery | null;
   allowDeepLinks?: boolean;
   storageKey?: string;
   onAnnotationsChange?: (store: AnnotationStoreV1) => void;
+  explainPassage?: (input: ExplainPassageRequest) => Promise<string>;
   debugLocation?: boolean;
   showMarginNotes?: boolean;
 };
@@ -110,6 +118,7 @@ export default function SemanticReader({
   allowDeepLinks = false,
   storageKey,
   onAnnotationsChange,
+  explainPassage,
   debugLocation = false,
   showMarginNotes = true,
 }: Props) {
@@ -153,6 +162,10 @@ export default function SemanticReader({
   const [marginNotes, setMarginNotes] = useState<MarginNoteRecord[]>([]);
   const onAnnotationsChangeRef = useRef(onAnnotationsChange);
   onAnnotationsChangeRef.current = onAnnotationsChange;
+  const explainPassageRef = useRef(explainPassage);
+  explainPassageRef.current = explainPassage;
+  const hrefRef = useRef(href);
+  hrefRef.current = href;
   const persistAnnotations = useCallback(
     (notes: MarginNoteRecord[], currentHref: string | null) => {
       const store: AnnotationStoreV1 = {
@@ -676,22 +689,44 @@ export default function SemanticReader({
     decorationManager.current.setDecoration(decoration);
     decorationManager.current.applyDecorations(root);
     
-    // Create a margin note linked to the highlight
     const noteId = `note-${Date.now()}`;
-    const newNote = {
+    const explain = explainPassageRef.current;
+    const newNote: MarginNoteRecord = {
       id: noteId,
       locator,
       quote,
-      content: "AI explanation coming soon... This is a placeholder for the full Grok integration.",
+      content: explain ? "" : "Ask AI is not available in this reader.",
       highlightId,
     };
-    
+
     const nextNotes = [...marginNotes, newNote];
     setMarginNotes(nextNotes);
-    
-    // Clear the active locator
     setActiveLocator(null);
     persistAnnotations(nextNotes, href);
+
+    if (!explain) return;
+
+    void explain({
+      quote,
+      prefix: activeCitation?.prefix,
+      suffix: activeCitation?.suffix,
+      href: locator.href ?? href ?? undefined,
+    })
+      .then((text: string) => text.trim() || "Ask AI returned an empty reply.")
+      .catch((err: unknown) =>
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "Ask AI failed. Try again.",
+      )
+      .then((content: string) => {
+        setMarginNotes((prev: MarginNoteRecord[]) => {
+          const patched = prev.map((note) =>
+            note.id === noteId ? { ...note, content } : note,
+          );
+          persistAnnotations(patched, hrefRef.current);
+          return patched;
+        });
+      });
   }, [activeLocator, activeCitation, href, marginNotes, persistAnnotations]);
 
   const handleRemoveNote = useCallback((noteId: string) => {
