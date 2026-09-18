@@ -2,11 +2,14 @@ use haddon_core::publication::{
     citation_roundtrip_epub, open_epub_default, render_normalized_html, LocatorResolution,
     NormalizationResult, Publication, PublicationLocator, ResolutionPolicy, ResourceLink,
 };
+use haddon_core::search::{search_publication, search_publication_resource, SearchOutcome};
+use std::sync::atomic::{AtomicU32, Ordering};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct PublicationSession {
     publication: Publication,
+    search_epoch: AtomicU32,
 }
 
 #[wasm_bindgen]
@@ -15,6 +18,7 @@ impl PublicationSession {
         let opened = open_epub_default(data).map_err(haddon_error)?;
         Ok(PublicationSession {
             publication: opened.value.publication,
+            search_epoch: AtomicU32::new(0),
         })
     }
 
@@ -39,6 +43,18 @@ impl PublicationSession {
             .iter()
             .filter(|link| link.is_linear())
             .map(link_json)
+            .collect();
+        serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
+    }
+
+    pub fn toc_json(&self) -> String {
+        let items: Vec<serde_json::Value> = self
+            .publication
+            .manifest()
+            .navigation
+            .toc
+            .iter()
+            .map(toc_entry_json)
             .collect();
         serde_json::to_string(&items).unwrap_or_else(|_| "[]".to_string())
     }
@@ -104,108 +120,75 @@ impl PublicationSession {
         let _ = self.publication.close();
     }
 
+    pub fn begin_search(&self) -> u32 {
+        self.search_epoch.fetch_add(1, Ordering::AcqRel) + 1
+    }
+
+    pub fn cancel_search(&self) {
+        self.search_epoch.fetch_add(1, Ordering::AcqRel);
+    }
+
+    pub fn search_generation(&self) -> u32 {
+        self.search_epoch.load(Ordering::Acquire)
+    }
+
     pub fn search_json(&self, query: &str, limit: usize) -> Result<String, JsValue> {
-        if query.trim().is_empty() {
-            return Ok("[]".to_string());
+        self.search_json_for_generation(query, limit, None)
+    }
+
+    pub fn search_json_for(
+        &self,
+        query: &str,
+        limit: usize,
+        generation: u32,
+    ) -> Result<String, JsValue> {
+        self.search_json_for_generation(query, limit, Some(generation))
+    }
+
+    pub fn search_resource_json(
+        &self,
+        href: &str,
+        query: &str,
+        limit: usize,
+        generation: u32,
+    ) -> Result<String, JsValue> {
+        if !self.generation_is_current(Some(generation)) {
+            return Ok(cancelled_json());
         }
-
-        let reading_order = &self.publication.manifest().reading_order;
-        let linear_items: Vec<_> = reading_order
-            .iter()
-            .filter(|link| link.is_linear())
-            .collect();
-
-        let mut hits = Vec::new();
-        let needle = query.trim();
-        let needle_lower = needle.to_lowercase();
-
-        for link in linear_items {
-            if hits.len() >= limit {
-                break;
-            }
-
-            let normalized = match self.publication.normalize(link.href.as_str()) {
-                Ok(outcome) => match outcome.value {
-                    haddon_core::publication::NormalizationResult::Normalized(resource) => resource,
-                    _ => continue,
-                },
-                Err(_) => continue,
-            };
-
-            normalized.root.for_each_block(&mut |block| {
-                if hits.len() >= limit {
-                    return;
-                }
-
-                let Some(text_block) = block.as_text_block() else {
-                    return;
-                };
-
-                let text = &text_block.text;
-                let text_lower = text.to_lowercase();
-
-                let mut search_offset = 0;
-                while let Some(relative_idx) = text_lower[search_offset..].find(&needle_lower) {
-                    let start_idx = search_offset + relative_idx;
-                    let end_idx = start_idx + needle.len();
-
-                    let exact_match = &text[start_idx..end_idx];
-
-                    let snippet = make_search_snippet(text, start_idx, needle.len());
-
-                    let Ok(start_offset) =
-                        haddon_core::publication::utf16_offset_at_byte(text, start_idx)
-                    else {
-                        search_offset = end_idx;
-                        continue;
-                    };
-                    let Ok(end_offset) =
-                        haddon_core::publication::utf16_offset_at_byte(text, end_idx)
-                    else {
-                        search_offset = end_idx;
-                        continue;
-                    };
-
-                    hits.push(serde_json::json!({
-                        "href": normalized.href,
-                        "blockId": text_block.base.id,
-                        "start": start_offset,
-                        "end": end_offset,
-                        "exact": exact_match,
-                        "snippet": snippet,
-                    }));
-
-                    search_offset = end_idx;
-
-                    if hits.len() >= limit {
-                        return;
-                    }
-                }
-            });
+        let hits = search_publication_resource(&self.publication, href, query, limit);
+        if !self.generation_is_current(Some(generation)) {
+            return Ok(cancelled_json());
         }
-
         serde_json::to_string(&hits).map_err(haddon_error)
     }
 }
 
-fn make_search_snippet(text: &str, match_start: usize, match_len: usize) -> String {
-    let chars: Vec<char> = text.chars().collect();
-    let start_char = text[..match_start].chars().count();
-    let end_char = start_char + text[match_start..match_start + match_len].chars().count();
-    let snippet_start = start_char.saturating_sub(40);
-    let snippet_end = (end_char + 60).min(chars.len());
-
-    let mut snippet: String = chars[snippet_start..snippet_end].iter().collect();
-    snippet = snippet.split_whitespace().collect::<Vec<_>>().join(" ");
-
-    if snippet_start > 0 {
-        snippet.insert_str(0, "...");
-    }
-    if snippet_end < chars.len() {
-        snippet.push_str("...");
+impl PublicationSession {
+    fn generation_is_current(&self, generation: Option<u32>) -> bool {
+        match generation {
+            None => true,
+            Some(expected) => self.search_epoch.load(Ordering::Acquire) == expected,
+        }
     }
 
-    snippet
+    fn search_json_for_generation(
+        &self,
+        query: &str,
+        limit: usize,
+        generation: Option<u32>,
+    ) -> Result<String, JsValue> {
+        let outcome = search_publication(&self.publication, query, limit, || {
+            self.generation_is_current(generation)
+        });
+        match outcome {
+            SearchOutcome::Cancelled => Ok(cancelled_json()),
+            SearchOutcome::Complete(hits) => serde_json::to_string(&hits).map_err(haddon_error),
+        }
+    }
+}
+
+fn cancelled_json() -> String {
+    "{\"cancelled\":true}".to_string()
 }
 
 fn link_json(link: &ResourceLink) -> serde_json::Value {
@@ -214,6 +197,20 @@ fn link_json(link: &ResourceLink) -> serde_json::Value {
         "title": link.title.as_ref().map(|title| title.value.clone()),
         "mediaType": link.media_type,
     })
+}
+
+fn toc_entry_json(link: &ResourceLink) -> serde_json::Value {
+    let mut entry = serde_json::json!({
+        "href": link.href.as_str(),
+        "title": link.title.as_ref().map(|title| title.value.clone()),
+    });
+
+    if !link.children.is_empty() {
+        let children: Vec<serde_json::Value> = link.children.iter().map(toc_entry_json).collect();
+        entry["children"] = serde_json::json!(children);
+    }
+
+    entry
 }
 
 fn resolution_json(resolution: &LocatorResolution) -> String {

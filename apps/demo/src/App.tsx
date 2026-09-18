@@ -836,6 +836,13 @@ export default function App() {
             session={session}
             initialCitation={pendingCitation}
             allowDeepLinks={bookSource === "fixture"}
+            storageKey={
+              bookSource === "fixture"
+                ? "haddon:demo:annotations:fixture"
+                : title
+                  ? `haddon:demo:annotations:${title}`
+                  : undefined
+            }
           />
         )}
         {loading && <div className="drop-prompt">Loading...</div>}

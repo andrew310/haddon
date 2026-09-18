@@ -146,7 +146,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 - [~] Return locator-backed results with exact quote context and correct Unicode handling.
   - [x] First-cut implementation: WASM search method queries normalized text across all linear spine items, returns locator-backed hits with snippets, UI with Cmd/Ctrl-F focus, results list with navigation, and hits use decoration system for highlighting.
-  - [ ] Full implementation: cancellable/resumable search, fuzzy matching, diacritic folding, multi-block results.
+  - [x] Remainder (issue #26): diacritic folding, multiple matches per block, cancellable queries. Fold for matching; `exact`/offsets stay on source text. Fuzzy matching still later.
 - **Depends on:** HADDON-016, HADDON-022, HADDON-024
 - **Acceptance:** multiple matches per block, case folding, diacritics, and Unicode expansion cannot produce invalid offsets.
 
@@ -177,6 +177,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 - [x] Expose selections as locators and render grouped citations, highlights, search results, and annotations. (Thin MVP: selection → locator, active-citation decoration, remount-stable identity. Full grouped decorations and annotation persistence deferred.)
   - [x] Range-accurate decorations: decorations now paint the exact text range specified by start/end offsets, not the entire block element. Uses span wrapping for precise highlighting.
   - [~] Source drawer: intercept in-text citation/noteref clicks and open a side drawer showing the source content instead of navigating away. First-cut implementation for the demo.
+  - [x] Selection floating chip: On text selection, show floating chip with 4 highlight colors (yellow, blue, green, pink) and "Ask AI" action. Choosing a color clears native selection and applies durable decoration. "Ask AI" creates a locator-anchored margin note (placeholder for Grok integration). Restores from `haddon.annotations` v1 storage after remount.
 - **Depends on:** HADDON-018, HADDON-031, HADDON-032
 - **Acceptance:** decoration identity is independent of DOM element instances and can be restored after remounting.
 
@@ -197,7 +198,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 - [x] Render content unsuitable for normalization using a separately secured iframe backend.
 - **Depends on:** HADDON-020, HADDON-030
 - **Acceptance:** scripts are inert by default; CSP, sandbox, external-resource, origin, and URL-lifecycle policies are tested.
-- **Note:** First-cut implementation complete (PR pending). Design doc at `docs/design/iframe-rendition.md`. TypeScript backend at `packages/haddon-navigator/src/iframe-backend.ts` with comprehensive test suite covering security policies, URL lifecycle, and origin isolation. Scripts are inert via sandbox + CSP; external resources blocked; deterministic blob URL cleanup on destroy.
+- **Note:** First-cut implementation complete (PR #21). Design doc at `docs/design/iframe-rendition.md`. TypeScript backend at `packages/haddon-navigator/src/iframe-backend.ts` with comprehensive test suite covering security policies, URL lifecycle, and origin isolation. Scripts are inert via sandbox + CSP; external resources blocked; deterministic blob URL cleanup on destroy.
 
 ### HADDON-036 — Add fixed-layout rendition
 
@@ -242,7 +243,10 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ### HADDON-044 — Persist sessions, annotations, and migrations
 
-- [ ] Persist current locator, preferences, bookmarks, citation decorations, and annotations with versioned migrations.
+- [~] Persist current locator, preferences, bookmarks, citation decorations, and annotations with versioned migrations.
+  - [x] First cut: versioned `haddon.annotations` v1 in localStorage (highlights, Ask AI notes, last href) for the demo and `apps/web` book reader. Restores after remount.
+  - [x] Reader typography prefs: versioned `haddon.prefs` v1 in `haddon:web:prefs` (typeface, size, line height, measure, page theme). Postgres later.
+  - [ ] Postgres-backed annotations, preferences, bookmarks, and normalizer-revision migrations.
 - **Depends on:** HADDON-033, HADDON-040, HADDON-042
 - **Acceptance:** state restores across viewport changes and a normalizer revision; unresolved migrations retain source evidence.
 
@@ -293,12 +297,11 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 ## Current Work Queue
 
-At most three subagents should work simultaneously. The next planned assignments deliberately leave one lane free for review and integration:
+The numbered engine tickets through HADDON-035, 040, and 041 are on main. Live product work is `apps/web` (TanStack Start), not Remix.
 
 | Lane | Ticket | Work area |
 | --- | --- | --- |
-| Agent 1 | HADDON-032 | Visible-location tracking from the HTML reader |
-| Agent 2 | Held | 020 archive hardening before untrusted books |
-| Agent 3 | Held free | Primary-agent review, shared conformance fixtures, and conflict avoidance |
-
-Completed agent waves delivered HADDON-002, HADDON-003, HADDON-010 through HADDON-017, HADDON-030, and HADDON-050. The primary agent completed HADDON-001, reviews all lanes, updates ticket status, and prevents contract or file overlap. WASM/JS locator bindings were deferred from HADDON-016.
+| Done this branch | HADDON-033 chip + TOC titles + 044 first cut | Semantic reader in demo and `apps/web`; annotations restore from localStorage |
+| Next | HADDON-044 remainder | Durable server-side annotations |
+| Next | Ask AI | Replace the margin-note placeholder with a real model call |
+| Parked | HADDON-042 | Remix adapter. The host is TanStack Start. |

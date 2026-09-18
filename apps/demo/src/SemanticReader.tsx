@@ -1,18 +1,44 @@
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
+  autoUpdate,
+  flip,
+  offset,
+  shift,
+  useFloating,
+} from "@floating-ui/react";
+import {
   type CitationQuery,
   MOON_QUOTE,
   citationHref,
   isSampleHref,
 } from "./citationLink";
 import { citationFromDomSelection, locatorFromDomSelection } from "./selectionCitation";
-import { openCitation } from "../../../packages/haddon-citation-router/open-citation";
 import { VisibilityTracker } from "../../../packages/haddon-navigator/src/visibility-tracker";
 import { DecorationManager, type Decoration } from "../../../packages/haddon-navigator/src/decoration-manager";
 import { applyLayoutMode, scrollToElement, type LayoutModeOptions } from "../../../packages/haddon-navigator/src/layout-modes";
 import { WasmLocatorService } from "./LocatorService";
 import type { VisibleLocationV1, LocationChangeCause, PublicationLocatorV1, RenditionLayout } from "../../../packages/haddon-navigator/src/types";
 import { SourceDrawer } from "./SourceDrawer";
+import { SelectionChip, type HighlightColor } from "./SelectionChip";
+import { MarginNote } from "./MarginNote";
+import { enrichReadingOrderWithToc, type ReadingItem, type TocEntry } from "./toc";
+import {
+  emptyAnnotations,
+  loadAnnotations,
+  saveAnnotations,
+  type AnnotationStoreV1,
+  type MarginNoteRecord,
+} from "./annotations";
+import { ReaderTypography } from "./ReaderTypography";
+import {
+  loadReaderPrefs,
+  readerPrefsCssVars,
+  readerPrefsSignature,
+  saveReaderPrefs,
+  subscribeReaderPrefs,
+  type ReaderPrefsV1,
+} from "./reader-prefs";
+import "./SemanticReader.css";
 
 type SearchHit = {
   href: string;
@@ -23,23 +49,20 @@ type SearchHit = {
   snippet: string;
 };
 
-function highlightSnippet(snippet: string, query: string): JSX.Element {
-  if (!query.trim()) {
+function highlightSnippet(snippet: string, exact: string): JSX.Element {
+  if (!exact) {
     return <>{snippet}</>;
   }
-  
-  const queryLower = query.toLowerCase();
-  const snippetLower = snippet.toLowerCase();
-  const index = snippetLower.indexOf(queryLower);
-  
+
+  const index = snippet.indexOf(exact);
   if (index === -1) {
     return <>{snippet}</>;
   }
-  
+
   const before = snippet.slice(0, index);
-  const match = snippet.slice(index, index + query.length);
-  const after = snippet.slice(index + query.length);
-  
+  const match = snippet.slice(index, index + exact.length);
+  const after = snippet.slice(index + exact.length);
+
   return (
     <>
       {before}
@@ -49,25 +72,55 @@ function highlightSnippet(snippet: string, query: string): JSX.Element {
   );
 }
 
+type SearchPayload = { cancelled: true } | { cancelled: false; hits: SearchHit[] };
+
+function parseSearchPayload(json: string): SearchPayload {
+  const parsed: unknown = JSON.parse(json);
+  if (
+    parsed !== null &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    "cancelled" in parsed &&
+    (parsed as { cancelled?: unknown }).cancelled === true
+  ) {
+    return { cancelled: true };
+  }
+  if (!Array.isArray(parsed)) {
+    return { cancelled: false, hits: [] };
+  }
+  return { cancelled: false, hits: parsed as SearchHit[] };
+}
+
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
 
-type ReadingItem = {
-  href: string;
-  title?: string | null;
-  mediaType?: string;
+export type ExplainPassageRequest = {
+  quote: string;
+  prefix?: string;
+  suffix?: string;
+  href?: string;
 };
 
 type Props = {
   session: PublicationSession;
   initialCitation?: CitationQuery | null;
   allowDeepLinks?: boolean;
+  storageKey?: string;
+  onAnnotationsChange?: (store: AnnotationStoreV1) => void;
+  explainPassage?: (input: ExplainPassageRequest) => Promise<string>;
+  debugLocation?: boolean;
+  showMarginNotes?: boolean;
 };
 
 export default function SemanticReader({
   session,
   initialCitation,
   allowDeepLinks = false,
+  storageKey,
+  onAnnotationsChange,
+  explainPassage,
+  debugLocation = false,
+  showMarginNotes = true,
 }: Props) {
   const rootRef = useRef<HTMLElement | null>(null);
   const blobUrls = useRef<string[]>([]);
@@ -96,9 +149,46 @@ export default function SemanticReader({
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchGenRef = useRef(0);
   const [layoutMode, setLayoutMode] = useState<RenditionLayout>("scrolled");
   const capturedLocationBeforeSwitch = useRef<PublicationLocatorV1 | null>(null);
+  const [prefs, setPrefs] = useState<ReaderPrefsV1>(() => loadReaderPrefs());
+  const skipPrefsRevision = useRef(true);
+  const prefsSignature = readerPrefsSignature(prefs);
+  const articleStyle = readerPrefsCssVars(prefs) as React.CSSProperties;
+  const [showSelectionChip, setShowSelectionChip] = useState(false);
+  const [marginNotes, setMarginNotes] = useState<MarginNoteRecord[]>([]);
+  const onAnnotationsChangeRef = useRef(onAnnotationsChange);
+  onAnnotationsChangeRef.current = onAnnotationsChange;
+  const explainPassageRef = useRef(explainPassage);
+  explainPassageRef.current = explainPassage;
+  const hrefRef = useRef(href);
+  hrefRef.current = href;
+  const persistAnnotations = useCallback(
+    (notes: MarginNoteRecord[], currentHref: string | null) => {
+      const store: AnnotationStoreV1 = {
+        schema: "haddon.annotations",
+        version: 1,
+        href: currentHref,
+        highlights: [...decorationManager.current.getDecorationsByGroup("highlights")],
+        notes,
+      };
+      if (storageKey) {
+        saveAnnotations(storageKey, store);
+      }
+      onAnnotationsChangeRef.current?.(store);
+    },
+    [storageKey],
+  );
+
+  const { refs: selectionChipRefs, floatingStyles: selectionChipStyles } = useFloating({
+    placement: "top",
+    whileElementsMounted: autoUpdate,
+    middleware: [offset(8), flip(), shift({ padding: 12 })],
+    strategy: "fixed",
+  });
 
   const revokeBlobs = useCallback(() => {
     for (const url of blobUrls.current) {
@@ -146,6 +236,16 @@ export default function SemanticReader({
     });
   }, []);
 
+  const layoutOptionsFor = useCallback(
+    (root?: HTMLElement | null): LayoutModeOptions => ({
+      mode: layoutMode,
+      columnWidth: Math.max(320, root?.clientWidth || 600),
+      columnGap: 40,
+      direction: "ltr",
+    }),
+    [layoutMode],
+  );
+
   const applyCurrentLayoutMode = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -156,15 +256,8 @@ export default function SemanticReader({
       layoutCleanup.current = null;
     }
 
-    const layoutOptions: LayoutModeOptions = {
-      mode: layoutMode,
-      columnWidth: 600,
-      columnGap: 40,
-      direction: "ltr",
-    };
-
-    layoutCleanup.current = applyLayoutMode(root, layoutOptions);
-  }, [layoutMode]);
+    layoutCleanup.current = applyLayoutMode(root, layoutOptionsFor(root));
+  }, [layoutOptionsFor]);
 
   const showHref = useCallback(
     (nextHref: string, fragment?: string) => {
@@ -204,13 +297,7 @@ export default function SemanticReader({
           if (fragment) {
             const target = root.querySelector(`#${CSS.escape(fragment)}`);
             if (target instanceof HTMLElement) {
-              const layoutOptions: LayoutModeOptions = {
-                mode: layoutMode,
-                columnWidth: 600,
-                columnGap: 40,
-                direction: "ltr",
-              };
-              scrollToElement(root, target, layoutOptions);
+              scrollToElement(root, target, layoutOptionsFor(root));
             }
           }
         });
@@ -222,7 +309,7 @@ export default function SemanticReader({
         setHtml("");
       }
     },
-    [rewriteResources, session, handleLocationChange, layoutMode, applyCurrentLayoutMode],
+    [rewriteResources, session, handleLocationChange, applyCurrentLayoutMode, layoutOptionsFor],
   );
 
   const applyCitation = useCallback(
@@ -266,21 +353,46 @@ export default function SemanticReader({
     [allowDeepLinks, session, showHref],
   );
 
+  const showHrefRef = useRef(showHref);
+  showHrefRef.current = showHref;
+  const applyCitationRef = useRef(applyCitation);
+  applyCitationRef.current = applyCitation;
+
   useEffect(() => {
+    decorationManager.current = new DecorationManager();
     try {
       const items = JSON.parse(session.reading_order_json()) as ReadingItem[];
-      setChapters(items);
+      let toc: TocEntry[] = [];
+      try {
+        const withToc = session as PublicationSession & { toc_json?: () => string };
+        toc = JSON.parse(withToc.toc_json?.() ?? "[]") as TocEntry[];
+      } catch {
+        toc = [];
+      }
+      setChapters(enrichReadingOrderWithToc(items, toc));
     } catch {
       setChapters([]);
     }
+
+    const stored = storageKey ? loadAnnotations(storageKey) : emptyAnnotations();
+    for (const decoration of stored.highlights) {
+      decorationManager.current.setDecoration(decoration);
+    }
+    setMarginNotes(stored.notes);
+    onAnnotationsChangeRef.current?.(stored);
+
     if (initialCitation) {
       if (!openedCitation.current) {
         openedCitation.current = true;
-        applyCitation(initialCitation, true);
+        applyCitationRef.current(initialCitation, true);
       }
     } else {
-      const first = session.first_linear_href();
-      if (first) showHref(first);
+      try {
+        const first = stored.href || session.first_linear_href();
+        if (first) showHrefRef.current(first);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      }
     }
     return () => {
       openedCitation.current = false;
@@ -294,7 +406,12 @@ export default function SemanticReader({
         layoutCleanup.current = null;
       }
     };
-  }, [applyCitation, initialCitation, revokeBlobs, session, showHref]);
+  }, [
+    initialCitation,
+    revokeBlobs,
+    session,
+    storageKey,
+  ]);
 
   const resolveRelativeHref = useCallback(
     (currentHref: string, reference: string): string => {
@@ -442,6 +559,13 @@ export default function SemanticReader({
     
     const selection = window.getSelection();
     
+    // Check if there's actual text selected
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      setShowSelectionChip(false);
+      setActiveLocator(null);
+      return;
+    }
+    
     // Get citation for URL/display
     const citation = citationFromDomSelection(root, selection);
     if (citation) {
@@ -454,24 +578,28 @@ export default function SemanticReader({
       }
     }
     
-    // Get locator for decoration
+    // Get locator for decoration and chip positioning
     const locator = locatorFromDomSelection(root, selection);
     if (locator) {
       setActiveLocator(locator);
       
-      // Clear previous active-citation decorations and add the new one
-      decorationManager.current.clearGroup("active-citation");
-      const decoration: Decoration = {
-        id: `selection-${Date.now()}`,
-        locator,
-        group: "active-citation",
-      };
-      decorationManager.current.setDecoration(decoration);
+      // Position the selection chip using the native selection range
+      const range = selection.getRangeAt(0);
+      const rects = range.getClientRects();
+      const fallback = range.getBoundingClientRect();
+      const lastRect = rects.length > 0 ? rects[rects.length - 1] : fallback;
+      if (lastRect && lastRect.width + lastRect.height > 0) {
+        const virtualReference = {
+          getBoundingClientRect: () => lastRect,
+        };
+        selectionChipRefs.setPositionReference(virtualReference);
+        setShowSelectionChip(true);
+      }
       
-      // Reapply decorations to the DOM
-      decorationManager.current.applyDecorations(root);
+      // Clear previous active-citation decorations (don't apply yet - chip will handle it)
+      decorationManager.current.clearGroup("active-citation");
     }
-  }, [allowDeepLinks, href]);
+  }, [allowDeepLinks, href, selectionChipRefs]);
 
   const copyCitationLink = useCallback(async () => {
     if (!activeCitation) return;
@@ -485,22 +613,225 @@ export default function SemanticReader({
     await navigator.clipboard.writeText(text);
   }, [activeCitation]);
 
+  const handleColorSelect = useCallback((color: HighlightColor) => {
+    const root = rootRef.current;
+    const locator = activeLocator;
+    if (!root || !locator) return;
+
+    // Find overlapping highlights
+    const overlapping = decorationManager.current.findOverlappingDecorations(locator, "highlights");
+    
+    // Get IDs of highlights that have margin notes (should be preserved)
+    const highlightsWithNotes = new Set(
+      marginNotes.map(note => note.highlightId).filter(Boolean)
+    );
+    
+    // Remove overlapping highlights that don't have margin notes
+    for (const overlap of overlapping) {
+      if (!highlightsWithNotes.has(overlap.id)) {
+        decorationManager.current.removeDecoration(overlap.id);
+      }
+    }
+
+    // Clear the native selection (visually)
+    window.getSelection()?.removeAllRanges();
+    
+    // Hide the chip
+    setShowSelectionChip(false);
+    
+    // Apply the decoration with the selected color
+    const decoration: Decoration = {
+      id: `highlight-${color}-${Date.now()}`,
+      locator,
+      group: "highlights",
+      style: color,
+    };
+    decorationManager.current.setDecoration(decoration);
+    decorationManager.current.applyDecorations(root);
+    
+    // Clear the active locator
+    setActiveLocator(null);
+    persistAnnotations(marginNotes, href);
+  }, [activeLocator, href, marginNotes, persistAnnotations]);
+
+  const handleAskAI = useCallback(() => {
+    const root = rootRef.current;
+    const locator = activeLocator;
+    const quote = activeCitation?.exact;
+    if (!root || !locator || !quote) return;
+
+    // Find overlapping highlights without notes and remove them
+    const overlapping = decorationManager.current.findOverlappingDecorations(locator, "highlights");
+    const highlightsWithNotes = new Set(
+      marginNotes.map(note => note.highlightId).filter(Boolean)
+    );
+    
+    for (const overlap of overlapping) {
+      if (!highlightsWithNotes.has(overlap.id)) {
+        decorationManager.current.removeDecoration(overlap.id);
+      }
+    }
+
+    // Clear the native selection
+    window.getSelection()?.removeAllRanges();
+    
+    // Hide the chip
+    setShowSelectionChip(false);
+    
+    // Create a highlight decoration for the Ask AI note (default to yellow)
+    const highlightId = `highlight-note-${Date.now()}`;
+    const decoration: Decoration = {
+      id: highlightId,
+      locator,
+      group: "highlights",
+      style: "yellow",
+    };
+    decorationManager.current.setDecoration(decoration);
+    decorationManager.current.applyDecorations(root);
+    
+    const noteId = `note-${Date.now()}`;
+    const explain = explainPassageRef.current;
+    const newNote: MarginNoteRecord = {
+      id: noteId,
+      locator,
+      quote,
+      content: explain ? "" : "Ask AI is not available in this reader.",
+      highlightId,
+    };
+
+    const nextNotes = [...marginNotes, newNote];
+    setMarginNotes(nextNotes);
+    setActiveLocator(null);
+    persistAnnotations(nextNotes, href);
+
+    if (!explain) return;
+
+    void explain({
+      quote,
+      prefix: activeCitation?.prefix,
+      suffix: activeCitation?.suffix,
+      href: locator.href ?? href ?? undefined,
+    })
+      .then((text: string) => text.trim() || "Ask AI returned an empty reply.")
+      .catch((err: unknown) =>
+        err instanceof Error && err.message.trim()
+          ? err.message
+          : "Ask AI failed. Try again.",
+      )
+      .then((content: string) => {
+        setMarginNotes((prev: MarginNoteRecord[]) => {
+          const patched = prev.map((note) =>
+            note.id === noteId ? { ...note, content } : note,
+          );
+          persistAnnotations(patched, hrefRef.current);
+          return patched;
+        });
+      });
+  }, [activeLocator, activeCitation, href, marginNotes, persistAnnotations]);
+
+  const handleRemoveNote = useCallback((noteId: string) => {
+    const root = rootRef.current;
+    
+    // Find the note to get its associated highlight ID
+    const note = marginNotes.find(n => n.id === noteId);
+    
+    const nextNotes = marginNotes.filter((n) => n.id !== noteId);
+    setMarginNotes(nextNotes);
+    
+    // Remove the associated highlight decoration if it exists
+    if (note?.highlightId && root) {
+      decorationManager.current.removeDecoration(note.highlightId);
+      decorationManager.current.applyDecorations(root);
+    }
+    persistAnnotations(nextNotes, href);
+  }, [href, marginNotes, persistAnnotations]);
+
+  const runSearch = useCallback(
+    async (query: string, gen: number, wasmGen: number) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        setSearchResults([]);
+        setSearching(false);
+        return;
+      }
+
+      setSearching(true);
+      try {
+        const items = JSON.parse(session.reading_order_json()) as { href: string }[];
+        const hits: SearchHit[] = [];
+        for (const item of items) {
+          if (gen !== searchGenRef.current) {
+            return;
+          }
+          const remaining = 50 - hits.length;
+          if (remaining <= 0) {
+            break;
+          }
+          const json = session.search_resource_json(item.href, trimmed, remaining, wasmGen);
+          const payload = parseSearchPayload(json);
+          if (payload.cancelled) {
+            return;
+          }
+          hits.push(...payload.hits);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        if (gen !== searchGenRef.current) {
+          return;
+        }
+        setSearchResults(hits);
+      } catch (err) {
+        if (gen !== searchGenRef.current) {
+          return;
+        }
+        console.error("Search failed:", err);
+        setSearchResults([]);
+      } finally {
+        if (gen === searchGenRef.current) {
+          setSearching(false);
+        }
+      }
+    },
+    [session],
+  );
+
+  const startSearch = useCallback(
+    (query: string) => {
+      const gen = ++searchGenRef.current;
+      session.cancel_search();
+      const wasmGen = session.begin_search();
+      return runSearch(query, gen, wasmGen);
+    },
+    [runSearch, session],
+  );
+
   const performSearch = useCallback(() => {
+    void startSearch(searchQuery);
+  }, [searchQuery, startSearch]);
+
+  const cancelSearch = useCallback(() => {
+    searchGenRef.current += 1;
+    session.cancel_search();
+    setSearching(false);
+  }, [session]);
+
+  useEffect(() => {
+    const gen = ++searchGenRef.current;
+    session.cancel_search();
     const trimmed = searchQuery.trim();
     if (!trimmed) {
       setSearchResults([]);
+      setSearching(false);
       return;
     }
-
-    try {
-      const resultsJson = session.search_json(trimmed, 50);
-      const hits = JSON.parse(resultsJson) as SearchHit[];
-      setSearchResults(hits);
-    } catch (err) {
-      console.error("Search failed:", err);
-      setSearchResults([]);
-    }
-  }, [searchQuery, session]);
+    const wasmGen = session.begin_search();
+    const timer = window.setTimeout(() => {
+      void runSearch(searchQuery, gen, wasmGen);
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      session.cancel_search();
+    };
+  }, [runSearch, searchQuery, session]);
 
   const navigateToHit = useCallback((hit: SearchHit) => {
     showHref(hit.href);
@@ -552,17 +883,11 @@ export default function SemanticReader({
 
         const block = root.querySelector(`[data-haddon-id="${CSS.escape(hit.blockId)}"]`);
         if (block instanceof HTMLElement) {
-          const layoutOptions: LayoutModeOptions = {
-            mode: layoutMode,
-            columnWidth: 600,
-            columnGap: 40,
-            direction: "ltr",
-          };
-          scrollToElement(root, block, layoutOptions);
+          scrollToElement(root, block, layoutOptionsFor(root));
         }
       });
     });
-  }, [showHref, layoutMode]);
+  }, [showHref, layoutOptionsFor]);
 
   useEffect(() => {
     if (!citeBlockId || !html) return;
@@ -579,15 +904,9 @@ export default function SemanticReader({
     target.querySelector("em")?.classList.add("haddon-cited");
     
     if (target instanceof HTMLElement) {
-      const layoutOptions: LayoutModeOptions = {
-        mode: layoutMode,
-        columnWidth: 600,
-        columnGap: 40,
-        direction: "ltr",
-      };
-      scrollToElement(root, target, layoutOptions);
+      scrollToElement(root, target, layoutOptionsFor(root));
     }
-  }, [citeBlockId, html, layoutMode]);
+  }, [citeBlockId, html, layoutOptionsFor]);
 
   const switchLayoutMode = useCallback(
     async (newMode: RenditionLayout) => {
@@ -630,12 +949,36 @@ export default function SemanticReader({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Apply layout mode when it changes
+  // Apply layout and locator-backed decorations after React commits HTML.
   useEffect(() => {
-    if (html && rootRef.current) {
-      applyCurrentLayoutMode();
+    const root = rootRef.current;
+    if (!html || !root) return;
+    rewriteResources(root);
+    applyCurrentLayoutMode();
+    const result = decorationManager.current.applyDecorations(root);
+    if (result.warnings.length > 0) {
+      console.warn("[DecorationManager] Warnings:", result.warnings);
     }
-  }, [layoutMode, html, applyCurrentLayoutMode]);
+  }, [layoutMode, html, applyCurrentLayoutMode, rewriteResources]);
+
+  useEffect(() => {
+    if (!href || !storageKey) return;
+    persistAnnotations(marginNotes, href);
+  }, [href, marginNotes, persistAnnotations, storageKey]);
+
+  useEffect(() => subscribeReaderPrefs(setPrefs), []);
+
+  // Keyed on prefs signature only; layout-mode switches restore location themselves.
+  useEffect(() => {
+    applyCurrentLayoutMode();
+    if (skipPrefsRevision.current) {
+      skipPrefsRevision.current = false;
+      return;
+    }
+    const tracker = visibilityTracker.current;
+    if (!tracker) return;
+    void tracker.incrementLayoutRevision("preferences");
+  }, [prefsSignature]);
 
   return (
     <div className="semantic-reader">
@@ -647,7 +990,19 @@ export default function SemanticReader({
         resolvedContent={drawerData?.resolvedContent}
         error={drawerData?.error}
       />
+      {showSelectionChip && activeLocator && (
+        <SelectionChip
+          floatingRef={selectionChipRefs.setFloating}
+          floatingStyles={selectionChipStyles}
+          onColorSelect={handleColorSelect}
+          onAskAI={handleAskAI}
+        />
+      )}
       <div className="reader-controls">
+        <ReaderTypography
+          prefs={prefs}
+          onChange={(next) => setPrefs(saveReaderPrefs(next))}
+        />
         <div className="layout-mode-toggle">
           <button
             type="button"
@@ -682,7 +1037,15 @@ export default function SemanticReader({
         <button type="button" onClick={performSearch} className="search-button">
           Search
         </button>
-        {searchResults.length > 0 && (
+        {searching && (
+          <>
+            <span className="search-status">Searching…</span>
+            <button type="button" onClick={cancelSearch} className="search-cancel">
+              Cancel
+            </button>
+          </>
+        )}
+        {!searching && searchResults.length > 0 && (
           <span className="search-count">
             {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
           </span>
@@ -698,7 +1061,7 @@ export default function SemanticReader({
               onClick={() => navigateToHit(hit)}
             >
               <div className="search-result-href">{hit.href}</div>
-              <div className="search-result-snippet">{highlightSnippet(hit.snippet, searchQuery)}</div>
+              <div className="search-result-snippet">{highlightSnippet(hit.snippet, hit.exact)}</div>
             </button>
           ))}
         </div>
@@ -760,7 +1123,7 @@ export default function SemanticReader({
       )}
       {status && <p className="semantic-status">{status}</p>}
       {error && <p className="error">{error}</p>}
-      {visibleLocation && (
+      {debugLocation && visibleLocation && (
         <div className="visibility-debug" style={{ 
           position: "fixed", 
           bottom: "10px", 
@@ -773,7 +1136,7 @@ export default function SemanticReader({
           maxWidth: "300px",
           zIndex: 1000,
         }}>
-          <div>📍 Location: {visibleLocation.current.href}</div>
+          <div>Location: {visibleLocation.current.href}</div>
           {visibleLocation.current.locations.normalized && (
             <div>
               Block: {visibleLocation.current.locations.normalized.start.blockId.substring(0, 20)}...
@@ -784,13 +1147,32 @@ export default function SemanticReader({
           <div>Segments: {visibleLocation.segments.length}</div>
         </div>
       )}
-      <ArticleBody
-        html={html}
-        rootRef={rootRef}
-        onClick={handleClick}
-        onMouseUp={captureSelection}
-        layoutMode={layoutMode}
-      />
+      <div className={`reader-with-margin${showMarginNotes && marginNotes.length > 0 ? ' has-notes' : ''}`}>
+        <ArticleBody
+          html={html}
+          rootRef={rootRef}
+          onClick={handleClick}
+          onMouseUp={captureSelection}
+          layoutMode={layoutMode}
+          theme={prefs.theme}
+          font={prefs.font}
+          articleStyle={articleStyle}
+        />
+        {showMarginNotes ? (
+          <div className="margin-notes-container">
+            {marginNotes.map(note => (
+              <MarginNote
+                key={note.id}
+                articleRoot={rootRef.current}
+                locator={note.locator}
+                quote={note.quote}
+                content={note.content}
+                onClose={() => handleRemoveNote(note.id)}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -801,18 +1183,27 @@ const ArticleBody = memo(function ArticleBody({
   onClick,
   onMouseUp,
   layoutMode,
+  theme,
+  font,
+  articleStyle,
 }: {
   html: string;
   rootRef: React.RefObject<HTMLElement | null>;
   onClick: (event: React.MouseEvent<HTMLElement>) => void;
   onMouseUp: () => void;
   layoutMode: RenditionLayout;
+  theme: ReaderPrefsV1["theme"];
+  font: ReaderPrefsV1["font"];
+  articleStyle: React.CSSProperties;
 }) {
   return (
     <article
       ref={rootRef}
       className="haddon-article"
       data-layout-mode={layoutMode}
+      data-reader-theme={theme}
+      data-reader-font={font}
+      style={articleStyle}
       onClick={onClick}
       onMouseUp={onMouseUp}
       dangerouslySetInnerHTML={{ __html: html }}

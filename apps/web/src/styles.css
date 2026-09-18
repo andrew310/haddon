@@ -83,6 +83,64 @@
     --sidebar-ring: oklch(0.709 0.01 56.259);
 }
 
+.haddon-web-reader {
+  --haddon-head-strip: 5.5rem;
+  padding-right: var(--haddon-head-strip);
+  background: var(--haddon-page-bg, var(--background));
+}
+
+.haddon-web-reader[data-reader-theme="dark"] {
+  color-scheme: dark;
+}
+
+@media (max-width: 700px) {
+  .haddon-web-reader {
+    --haddon-head-strip: 4.5rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .haddon-web-reader[data-lanes="2"] .haddon-article {
+    max-width: none;
+    column-count: 2;
+    column-width: auto;
+    column-gap: var(--haddon-head-strip);
+    column-fill: balance;
+    height: auto;
+    overflow: visible;
+  }
+}
+
+.haddon-web-reader .semantic-reader,
+.haddon-web-reader .reader-with-margin,
+.haddon-web-reader .reader-with-margin.has-notes {
+  display: block;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.haddon-web-reader .reader-controls,
+.haddon-web-reader .layout-mode-toggle {
+  display: none;
+}
+
+.haddon-web-reader .haddon-article {
+  width: 100%;
+  max-width: var(--haddon-measure, 45rem);
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  padding: 0 0 5rem;
+  overflow: visible;
+}
+
+.haddon-web-reader .haddon-article p,
+.haddon-web-reader .haddon-article div {
+  max-width: none;
+}
+
 .dark {
     --background: oklch(0.147 0.004 49.25);
     --foreground: oklch(0.985 0.001 106.423);

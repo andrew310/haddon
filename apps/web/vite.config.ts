@@ -15,6 +15,14 @@ const config = defineConfig({
     tanstackStart(),
     viteReact(),
   ],
+  optimizeDeps: {
+    exclude: ['haddon-wasm'],
+  },
+  server: {
+    fs: {
+      allow: ['../..'],
+    },
+  },
 })
 
 export default config

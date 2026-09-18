@@ -1,0 +1,134 @@
+.haddon-typography {
+  position: relative;
+}
+
+.haddon-typography > button {
+  background: var(--haddon-surface-alt);
+  color: var(--haddon-text);
+  border: 1px solid var(--haddon-border);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+}
+
+.haddon-typography > button.active {
+  background: var(--haddon-active-bg);
+  color: var(--haddon-active-text);
+  border-color: var(--haddon-active-border);
+}
+
+.haddon-typography-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: min(320px, calc(100vw - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--haddon-border);
+  border-radius: 12px;
+  background: var(--haddon-surface, #fff);
+  color: var(--haddon-text);
+  box-shadow: 0 12px 32px var(--haddon-shadow);
+}
+
+.haddon-typography-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--haddon-text-muted);
+}
+
+.haddon-typography-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-inline-size: 0;
+}
+
+.haddon-typography-fieldset legend,
+.haddon-typography-stepper-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--haddon-text-muted);
+}
+
+.haddon-typography-segment {
+  display: flex;
+  margin-top: 8px;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--haddon-border);
+  border-radius: 8px;
+}
+
+.haddon-typography-segment button {
+  flex: 1;
+  background: transparent;
+  color: var(--haddon-text);
+  border: 0;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.haddon-typography-segment button[data-font="serif"] {
+  font-family: "Literata Variable", Literata, Palatino, serif;
+}
+
+.haddon-typography-segment button[data-font="dyslexia"] {
+  font-family: OpenDyslexic, "Comic Sans MS", sans-serif;
+  font-size: 12px;
+}
+
+.haddon-typography-segment button.active {
+  background: var(--haddon-active-bg);
+  color: var(--haddon-active-text);
+}
+
+.haddon-typography-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.haddon-typography-stepper-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.haddon-typography-stepper-controls button {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--haddon-border);
+  background: var(--haddon-surface-alt);
+  color: var(--haddon-text);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.haddon-typography-stepper-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.haddon-typography-stepper-value {
+  min-width: 4.25rem;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

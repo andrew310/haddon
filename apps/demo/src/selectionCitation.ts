@@ -138,7 +138,10 @@ export function locatorFromDomSelection(
   
   // Calculate UTF-16 offset of the selection start within the block
   const startOffset = calculateSelectionOffset(block, range.startContainer, range.startOffset);
-  const endOffset = calculateSelectionOffset(block, range.endContainer, range.endOffset);
+  let endOffset = calculateSelectionOffset(block, range.endContainer, range.endOffset);
+  if (endOffset === startOffset && selectedText.length > 0) {
+    endOffset = startOffset + selectedText.length;
+  }
   
   return {
     schema: "haddon.publication-locator",

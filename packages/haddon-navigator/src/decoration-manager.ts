@@ -100,6 +100,43 @@ export class DecorationManager {
   }
   
   /**
+   * Find decorations that overlap with the given locator.
+   * Two decorations overlap if they share the same href and their ranges intersect.
+   */
+  findOverlappingDecorations(locator: PublicationLocatorV1, group?: DecorationGroup): readonly Decoration[] {
+    const overlapping: Decoration[] = [];
+    
+    for (const decoration of this.decorations.values()) {
+      // Skip if group filter specified and doesn't match
+      if (group && decoration.group !== group) continue;
+      
+      // Check if hrefs match
+      if (decoration.locator.href !== locator.href) continue;
+      
+      // Check if normalized ranges overlap
+      const loc1 = decoration.locator.locations.normalized;
+      const loc2 = locator.locations.normalized;
+      
+      if (!loc1 || !loc2) continue;
+      
+      // Same blockId means potential overlap
+      if (loc1.start.blockId === loc2.start.blockId) {
+        const start1 = loc1.start.offset.value;
+        const end1 = loc1.end?.offset.value ?? start1;
+        const start2 = loc2.start.offset.value;
+        const end2 = loc2.end?.offset.value ?? start2;
+        
+        // Check if ranges overlap: [start1, end1] intersects [start2, end2]
+        if (!(end1 < start2 || end2 < start1)) {
+          overlapping.push(decoration);
+        }
+      }
+    }
+    
+    return overlapping;
+  }
+  
+  /**
    * Apply decorations to the rendered DOM.
    * 
    * This method:
@@ -234,6 +271,11 @@ export class DecorationManager {
     const attrName = `data-haddon-decoration-${decoration.group}`;
     element.setAttribute(attrName, decoration.id);
     
+    // Add style attribute for colored highlights
+    if (decoration.group === "highlights" && decoration.style) {
+      element.setAttribute("data-haddon-highlight-color", decoration.style);
+    }
+    
     // Also mark inline elements within the block if this is a citation
     if (decoration.group === "active-citation") {
       const inlines = element.querySelectorAll("em, strong, span, a");
@@ -266,6 +308,11 @@ export class DecorationManager {
       const span = document.createElement("span");
       const attrName = `data-haddon-decoration-${decoration.group}`;
       span.setAttribute(attrName, decoration.id);
+      
+      // Add style attribute for colored highlights
+      if (decoration.group === "highlights" && decoration.style) {
+        span.setAttribute("data-haddon-highlight-color", decoration.style);
+      }
       
       // Wrap the range contents
       range.surroundContents(span);
