@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "./client";
 
 let ensured = false;
+let annotationsEnsured = false;
 
 export async function ensureBooksTable() {
   if (ensured) return;
@@ -26,4 +27,20 @@ export async function ensureBooksTable() {
   `);
 
   ensured = true;
+}
+
+export async function ensureBookAnnotationsTable() {
+  if (annotationsEnsured) return;
+
+  await ensureBooksTable();
+
+  await db.execute(sql`
+    create table if not exists book_annotations (
+      book_id uuid primary key references books(id) on delete cascade,
+      payload jsonb not null,
+      updated_at timestamptz not null default now()
+    );
+  `);
+
+  annotationsEnsured = true;
 }

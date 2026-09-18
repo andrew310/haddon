@@ -1,4 +1,6 @@
-import { pgTable, text, timestamp, uuid, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, integer, jsonb } from "drizzle-orm/pg-core";
+
+import type { AnnotationStoreV1 } from "../../../demo/src/annotations";
 
 export const books = pgTable("books", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -12,5 +14,14 @@ export const books = pgTable("books", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const bookAnnotations = pgTable("book_annotations", {
+  bookId: uuid("book_id")
+    .primaryKey()
+    .references(() => books.id, { onDelete: "cascade" }),
+  payload: jsonb("payload").$type<AnnotationStoreV1>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type BookRecord = typeof books.$inferSelect;
 export type NewBookRecord = typeof books.$inferInsert;
+export type BookAnnotationRecord = typeof bookAnnotations.$inferSelect;

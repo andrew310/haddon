@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Decoration } from "../../../packages/haddon-navigator/src/decoration-manager";
 import type { PublicationLocatorV1 } from "../../../packages/haddon-navigator/src/types";
 import {
+  asAnnotationStore,
+  coerceAnnotations,
   emptyAnnotations,
   loadAnnotations,
   parseAnnotations,
@@ -62,6 +64,23 @@ describe("parseAnnotations", () => {
     expect(store.highlights).toEqual([highlight]);
     expect(store.notes).toHaveLength(1);
     expect(store.notes[0]?.quote).toBe("the patient moon");
+  });
+
+  it("coerces a jsonb-shaped object the same way as a JSON string", () => {
+    const payload = {
+      schema: "haddon.annotations",
+      version: 1,
+      href: "text/chapter-2.xhtml",
+      highlights: [highlight],
+      notes: [],
+    };
+    expect(coerceAnnotations(payload)).toEqual(parseAnnotations(JSON.stringify(payload)));
+  });
+
+  it("rejects a foreign schema on strict parse", () => {
+    expect(() => asAnnotationStore({ schema: "other", version: 1 })).toThrow(
+      /Unsupported annotation schema/,
+    );
   });
 });
 
