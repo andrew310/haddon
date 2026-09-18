@@ -118,9 +118,20 @@
   font-weight: 500;
 }
 
-.semantic-reader .search-count {
+.semantic-reader .search-count,
+.semantic-reader .search-status {
   font-size: 13px;
   color: var(--haddon-text-muted);
+}
+
+.semantic-reader .search-cancel {
+  background: var(--haddon-surface);
+  color: var(--haddon-text);
+  border: 1px solid var(--haddon-border);
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
 }
 
 .semantic-reader .search-results {

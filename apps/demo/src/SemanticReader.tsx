@@ -40,23 +40,20 @@ type SearchHit = {
   snippet: string;
 };
 
-function highlightSnippet(snippet: string, query: string): JSX.Element {
-  if (!query.trim()) {
+function highlightSnippet(snippet: string, exact: string): JSX.Element {
+  if (!exact) {
     return <>{snippet}</>;
   }
-  
-  const queryLower = query.toLowerCase();
-  const snippetLower = snippet.toLowerCase();
-  const index = snippetLower.indexOf(queryLower);
-  
+
+  const index = snippet.indexOf(exact);
   if (index === -1) {
     return <>{snippet}</>;
   }
-  
+
   const before = snippet.slice(0, index);
-  const match = snippet.slice(index, index + query.length);
-  const after = snippet.slice(index + query.length);
-  
+  const match = snippet.slice(index, index + exact.length);
+  const after = snippet.slice(index + exact.length);
+
   return (
     <>
       {before}
@@ -64,6 +61,25 @@ function highlightSnippet(snippet: string, query: string): JSX.Element {
       {after}
     </>
   );
+}
+
+type SearchPayload = { cancelled: true } | { cancelled: false; hits: SearchHit[] };
+
+function parseSearchPayload(json: string): SearchPayload {
+  const parsed: unknown = JSON.parse(json);
+  if (
+    parsed !== null &&
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    "cancelled" in parsed &&
+    (parsed as { cancelled?: unknown }).cancelled === true
+  ) {
+    return { cancelled: true };
+  }
+  if (!Array.isArray(parsed)) {
+    return { cancelled: false, hits: [] };
+  }
+  return { cancelled: false, hits: parsed as SearchHit[] };
 }
 
 type WasmModule = typeof import("../../../packages/wasm/pkg/haddon_wasm");
@@ -115,7 +131,9 @@ export default function SemanticReader({
   } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchHit[]>([]);
+  const [searching, setSearching] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchGenRef = useRef(0);
   const [layoutMode, setLayoutMode] = useState<RenditionLayout>("scrolled");
   const capturedLocationBeforeSwitch = useRef<PublicationLocatorV1 | null>(null);
   const [showSelectionChip, setShowSelectionChip] = useState(false);
@@ -683,22 +701,92 @@ export default function SemanticReader({
     persistAnnotations(nextNotes, href);
   }, [href, marginNotes, persistAnnotations]);
 
+  const runSearch = useCallback(
+    async (query: string, gen: number, wasmGen: number) => {
+      const trimmed = query.trim();
+      if (!trimmed) {
+        setSearchResults([]);
+        setSearching(false);
+        return;
+      }
+
+      setSearching(true);
+      try {
+        const items = JSON.parse(session.reading_order_json()) as { href: string }[];
+        const hits: SearchHit[] = [];
+        for (const item of items) {
+          if (gen !== searchGenRef.current) {
+            return;
+          }
+          const remaining = 50 - hits.length;
+          if (remaining <= 0) {
+            break;
+          }
+          const json = session.search_resource_json(item.href, trimmed, remaining, wasmGen);
+          const payload = parseSearchPayload(json);
+          if (payload.cancelled) {
+            return;
+          }
+          hits.push(...payload.hits);
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+        if (gen !== searchGenRef.current) {
+          return;
+        }
+        setSearchResults(hits);
+      } catch (err) {
+        if (gen !== searchGenRef.current) {
+          return;
+        }
+        console.error("Search failed:", err);
+        setSearchResults([]);
+      } finally {
+        if (gen === searchGenRef.current) {
+          setSearching(false);
+        }
+      }
+    },
+    [session],
+  );
+
+  const startSearch = useCallback(
+    (query: string) => {
+      const gen = ++searchGenRef.current;
+      session.cancel_search();
+      const wasmGen = session.begin_search();
+      return runSearch(query, gen, wasmGen);
+    },
+    [runSearch, session],
+  );
+
   const performSearch = useCallback(() => {
+    void startSearch(searchQuery);
+  }, [searchQuery, startSearch]);
+
+  const cancelSearch = useCallback(() => {
+    searchGenRef.current += 1;
+    session.cancel_search();
+    setSearching(false);
+  }, [session]);
+
+  useEffect(() => {
+    const gen = ++searchGenRef.current;
+    session.cancel_search();
     const trimmed = searchQuery.trim();
     if (!trimmed) {
       setSearchResults([]);
+      setSearching(false);
       return;
     }
-
-    try {
-      const resultsJson = session.search_json(trimmed, 50);
-      const hits = JSON.parse(resultsJson) as SearchHit[];
-      setSearchResults(hits);
-    } catch (err) {
-      console.error("Search failed:", err);
-      setSearchResults([]);
-    }
-  }, [searchQuery, session]);
+    const wasmGen = session.begin_search();
+    const timer = window.setTimeout(() => {
+      void runSearch(searchQuery, gen, wasmGen);
+    }, 180);
+    return () => {
+      window.clearTimeout(timer);
+      session.cancel_search();
+    };
+  }, [runSearch, searchQuery, session]);
 
   const navigateToHit = useCallback((hit: SearchHit) => {
     showHref(hit.href);
@@ -898,7 +986,15 @@ export default function SemanticReader({
         <button type="button" onClick={performSearch} className="search-button">
           Search
         </button>
-        {searchResults.length > 0 && (
+        {searching && (
+          <>
+            <span className="search-status">Searching…</span>
+            <button type="button" onClick={cancelSearch} className="search-cancel">
+              Cancel
+            </button>
+          </>
+        )}
+        {!searching && searchResults.length > 0 && (
           <span className="search-count">
             {searchResults.length} {searchResults.length === 1 ? "result" : "results"}
           </span>
@@ -914,7 +1010,7 @@ export default function SemanticReader({
               onClick={() => navigateToHit(hit)}
             >
               <div className="search-result-href">{hit.href}</div>
-              <div className="search-result-snippet">{highlightSnippet(hit.snippet, searchQuery)}</div>
+              <div className="search-result-snippet">{highlightSnippet(hit.snippet, hit.exact)}</div>
             </button>
           ))}
         </div>

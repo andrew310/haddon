@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 describe("Search functionality", () => {
   let wasmModule: typeof import("../../../packages/wasm/pkg/haddon_wasm");
@@ -7,18 +9,21 @@ describe("Search functionality", () => {
   >;
 
   beforeAll(async () => {
-    wasmModule = await import("../../../packages/wasm/pkg/haddon_wasm");
-    await wasmModule.default();
+    wasmModule = await import("../../../packages/wasm/pkg/haddon_wasm.js");
+    const wasmBytes = readFileSync(
+      join(__dirname, "../../../packages/wasm/pkg/haddon_wasm_bg.wasm"),
+    );
+    await wasmModule.default(wasmBytes);
     session = wasmModule.PublicationSession.load_citation_fixture();
   });
 
   it("finds a phrase that appears once in the fixture", () => {
-    const resultsJson = session.search_json("patient moon", 50);
+    const resultsJson = session.search_json("astrolabe", 50);
     const results = JSON.parse(resultsJson);
 
     expect(results).toHaveLength(1);
-    expect(results[0].exact).toBe("patient moon");
-    expect(results[0].snippet).toContain("patient moon");
+    expect(results[0].exact).toBe("astrolabe");
+    expect(results[0].snippet).toContain("astrolabe");
     expect(results[0].href).toBe("text/chapter-1.xhtml");
     expect(results[0].blockId).toBeTruthy();
     expect(results[0].start).toBeGreaterThanOrEqual(0);
@@ -26,7 +31,7 @@ describe("Search functionality", () => {
   });
 
   it("finds a phrase that appears in multiple resources", () => {
-    const resultsJson = session.search_json("north", 50);
+    const resultsJson = session.search_json("patient moon", 50);
     const results = JSON.parse(resultsJson);
 
     expect(results.length).toBeGreaterThanOrEqual(2);
@@ -98,7 +103,7 @@ describe("Search functionality", () => {
   });
 
   it("produces results that can be converted to locators", () => {
-    const resultsJson = session.search_json("patient moon", 50);
+    const resultsJson = session.search_json("astrolabe", 50);
     const results = JSON.parse(resultsJson);
 
     expect(results).toHaveLength(1);
@@ -160,5 +165,66 @@ describe("Search functionality", () => {
       const snippetLower = hit.snippet.toLowerCase();
       expect(snippetLower).toContain("moon");
     }
+  });
+
+  it("returns multiple matches inside one paragraph", () => {
+    const resultsJson = session.search_json("the", 50);
+    const results = JSON.parse(resultsJson) as Array<{
+      blockId: string;
+      start: number;
+      end: number;
+    }>;
+
+    const byBlock = new Map<string, typeof results>();
+    for (const hit of results) {
+      const list = byBlock.get(hit.blockId) ?? [];
+      list.push(hit);
+      byBlock.set(hit.blockId, list);
+    }
+
+    const multi = [...byBlock.values()].find((hits) => hits.length >= 2);
+    expect(multi).toBeTruthy();
+    expect(multi![0].start).not.toBe(multi![1].start);
+    expect(multi![0].end).toBeGreaterThan(multi![0].start);
+    expect(multi![1].end).toBeGreaterThan(multi![1].start);
+  });
+
+  it("abandons an in-flight generation when cancelled", () => {
+    const generation = session.begin_search();
+    session.cancel_search();
+    const resultsJson = session.search_json_for("the", 50, generation);
+    const parsed = JSON.parse(resultsJson);
+    expect(parsed.cancelled).toBe(true);
+  });
+
+  it("honors the current generation for a live search", () => {
+    const generation = session.begin_search();
+    const resultsJson = session.search_json_for("astrolabe", 50, generation);
+    const results = JSON.parse(resultsJson);
+    expect(Array.isArray(results)).toBe(true);
+    expect(results).toHaveLength(1);
+    expect(results[0].exact).toBe("astrolabe");
+  });
+
+  it("searches one resource and ignores a cancelled generation", () => {
+    const generation = session.begin_search();
+    const liveJson = session.search_resource_json(
+      "text/chapter-1.xhtml",
+      "astrolabe",
+      10,
+      generation,
+    );
+    const live = JSON.parse(liveJson);
+    expect(live).toHaveLength(1);
+    expect(live[0].href).toBe("text/chapter-1.xhtml");
+
+    session.cancel_search();
+    const staleJson = session.search_resource_json(
+      "text/chapter-1.xhtml",
+      "astrolabe",
+      10,
+      generation,
+    );
+    expect(JSON.parse(staleJson).cancelled).toBe(true);
   });
 });
