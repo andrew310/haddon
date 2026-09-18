@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { eq } from "drizzle-orm";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn, useServerFn } from "@tanstack/react-start";
@@ -6,14 +6,31 @@ import { Info } from "lucide-react";
 
 import { Button } from "#/components/ui/button";
 import { ReaderTypography } from "#/components/reader/ReaderTypography";
+import {
+  getBookAnnotationStore,
+  saveBookAnnotationStore,
+} from "#/db/annotations";
 import { db } from "#/db/client";
 import { ensureBooksTable } from "#/db/ensure";
 import { books } from "#/db/schema";
-import type { AnnotationStoreV1 } from "../../../demo/src/annotations.ts";
+import {
+  asAnnotationStore,
+  emptyAnnotations,
+  loadAnnotations,
+  saveAnnotations,
+  type AnnotationStoreV1,
+} from "../../../demo/src/annotations.ts";
 import type { ExplainPassageRequest } from "../../../demo/src/SemanticReader.tsx";
 import { ChatHeadDock } from "#/components/chatheads/ChatHeadDock";
 import { askAboutPassage } from "#/lib/ask-ai-fn";
 import { replyFromAskAiResult } from "#/lib/ask-ai";
+import {
+  annotationStoreToPayload,
+  mergeAnnotationSources,
+  serverAnnotationsFromDto,
+  webAnnotationsStorageKey,
+  type ServerAnnotationsDto,
+} from "#/lib/annotations-cache";
 import { displayBookTitle } from "#/lib/book-title";
 import { TWO_LANE_MIN_WIDTH } from "#/lib/chat-head-layout";
 import { threadsFromAnnotations } from "#/lib/chat-threads";
@@ -26,6 +43,8 @@ import {
   subscribeReaderPrefs,
   type ReaderPrefsV1,
 } from "../../../demo/src/reader-prefs";
+
+const ANNOTATIONS_SAVE_DEBOUNCE_MS = 400;
 
 type WasmModule = typeof import("../../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
@@ -59,30 +78,96 @@ const getBook = createServerFn({ method: "GET" })
     return book;
   });
 
+const getBookAnnotations = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) => {
+    if (
+      !input ||
+      typeof input !== "object" ||
+      typeof (input as { bookId?: unknown }).bookId !== "string"
+    ) {
+      throw new Error("Missing book id");
+    }
+    return { bookId: (input as { bookId: string }).bookId };
+  })
+  .handler(async ({ data }): Promise<ServerAnnotationsDto> => {
+    try {
+      const loaded = await getBookAnnotationStore(data.bookId);
+      return {
+        ok: true,
+        found: loaded.found,
+        payload: annotationStoreToPayload(loaded.store),
+      };
+    } catch {
+      return { ok: false };
+    }
+  });
+
+const persistBookAnnotations = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => {
+    if (!input || typeof input !== "object") {
+      throw new Error("Missing annotation payload");
+    }
+    const bookId = (input as { bookId?: unknown }).bookId;
+    const payload = (input as { payload?: unknown }).payload;
+    if (typeof bookId !== "string" || bookId.length === 0) {
+      throw new Error("Missing book id");
+    }
+    if (typeof payload !== "string") {
+      throw new Error("Missing annotation store");
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(payload);
+    } catch {
+      throw new Error("Invalid annotation store");
+    }
+    asAnnotationStore(parsed);
+    return { bookId, payload };
+  })
+  .handler(async ({ data }) => {
+    await saveBookAnnotationStore(
+      data.bookId,
+      asAnnotationStore(JSON.parse(data.payload)),
+    );
+    return { ok: true as const };
+  });
+
 export const Route = createFileRoute("/books/$bookId")({
-  loader: ({ params }) => getBook({ data: { bookId: params.bookId } }),
+  loader: async ({ params }) => {
+    const book = await getBook({ data: { bookId: params.bookId } });
+    const annotations = await getBookAnnotations({
+      data: { bookId: params.bookId },
+    });
+    return { book, annotations };
+  },
   component: BookReaderPage,
 });
 
 function BookReaderPage() {
-  const book = Route.useLoaderData();
+  const { book, annotations: annotationsDto } = Route.useLoaderData();
+  const annotationsLoad = serverAnnotationsFromDto(annotationsDto);
   const askAboutPassageFn = useServerFn(askAboutPassage);
+  const persistBookAnnotationsFn = useServerFn(persistBookAnnotations);
   const [session, setSession] = useState<PublicationSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [annotations, setAnnotations] = useState<AnnotationStoreV1>({
-    schema: "haddon.annotations",
-    version: 1,
-    href: null,
-    highlights: [],
-    notes: [],
-  });
-  const storageKey = `haddon:web:annotations:${book.id}`;
+  const [seededBookId, setSeededBookId] = useState<string | null>(null);
+  const [annotations, setAnnotations] = useState<AnnotationStoreV1>(() =>
+    annotationsLoad.ok && annotationsLoad.found
+      ? annotationsLoad.store
+      : emptyAnnotations(),
+  );
+  const storageKey = webAnnotationsStorageKey(book.id);
+  const cacheReady = seededBookId === book.id;
   const bookLabel = displayBookTitle(book.title, book.originalFilename);
   const [lanePref, setLanePref] = useState(1);
   const [wideEnough, setWideEnough] = useState(true);
   const lanes = lanePref === 2 && wideEnough ? 2 : 1;
   const [prefs, setPrefs] = useState<ReaderPrefsV1>(defaultReaderPrefs);
+  const pendingStoreRef = useRef<AnnotationStoreV1 | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const annotationsLoadRef = useRef(annotationsLoad);
+  annotationsLoadRef.current = annotationsLoad;
 
   useEffect(() => {
     const stored = window.localStorage.getItem("haddon:web:lanes");
@@ -101,8 +186,28 @@ function BookReaderPage() {
     window.localStorage.setItem("haddon:web:lanes", String(next));
   };
 
+  const flushAnnotationsSave = useCallback(
+    (store: AnnotationStoreV1) => {
+      pendingStoreRef.current = null;
+      void persistBookAnnotationsFn({
+        data: { bookId: book.id, payload: annotationStoreToPayload(store) },
+      }).catch(() => {
+        // localStorage already holds the envelope
+      });
+    },
+    [book.id, persistBookAnnotationsFn],
+  );
+  const flushAnnotationsSaveRef = useRef(flushAnnotationsSave);
+  flushAnnotationsSaveRef.current = flushAnnotationsSave;
+
   const handleAnnotationsChange = useCallback((store: AnnotationStoreV1) => {
     setAnnotations(store);
+    pendingStoreRef.current = store;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      flushAnnotationsSaveRef.current(store);
+    }, ANNOTATIONS_SAVE_DEBOUNCE_MS);
   }, []);
 
   const explainPassage = useCallback(
@@ -118,6 +223,29 @@ function BookReaderPage() {
     },
     [askAboutPassageFn, book.id, bookLabel],
   );
+
+  useEffect(() => {
+    const local = loadAnnotations(storageKey);
+    const merged = mergeAnnotationSources(annotationsLoadRef.current, local);
+    saveAnnotations(storageKey, merged.store);
+    setAnnotations(merged.store);
+    setSeededBookId(book.id);
+    if (merged.persistToServer) {
+      flushAnnotationsSaveRef.current(merged.store);
+    }
+  }, [book.id, storageKey]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      if (pendingStoreRef.current) {
+        flushAnnotationsSaveRef.current(pendingStoreRef.current);
+      }
+    };
+  }, [book.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,7 +383,7 @@ function BookReaderPage() {
             data-reader-theme={prefs.theme}
             style={readerPaneCssVars(prefs) as CSSProperties}
           >
-            {session ? (
+            {session && cacheReady ? (
               <Suspense
                 fallback={
                   <p className="text-sm text-muted-foreground">Opening reader…</p>

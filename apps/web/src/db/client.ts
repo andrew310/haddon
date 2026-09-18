@@ -22,4 +22,5 @@ if (process.env.NODE_ENV !== "production") {
   globalForDb.__haddonSql = sql;
 }
 
+export const postgresClient = sql;
 export const db = drizzle(sql, { schema });

@@ -53,22 +53,48 @@ function isNote(value: unknown): value is MarginNoteRecord {
   );
 }
 
+export function coerceAnnotations(value: unknown): AnnotationStoreV1 {
+  if (!value || typeof value !== "object") return emptyAnnotations();
+  const parsed = value as Partial<AnnotationStoreV1>;
+  if (parsed.schema !== ANNOTATION_SCHEMA || parsed.version !== ANNOTATION_VERSION) {
+    return emptyAnnotations();
+  }
+  return {
+    schema: ANNOTATION_SCHEMA,
+    version: ANNOTATION_VERSION,
+    href: typeof parsed.href === "string" ? parsed.href : null,
+    highlights: Array.isArray(parsed.highlights)
+      ? parsed.highlights.filter(isDecoration)
+      : [],
+    notes: Array.isArray(parsed.notes) ? parsed.notes.filter(isNote) : [],
+  };
+}
+
+export function asAnnotationStore(value: unknown): AnnotationStoreV1 {
+  if (!value || typeof value !== "object") {
+    throw new Error("Missing annotation store");
+  }
+  const record = value as { schema?: unknown; version?: unknown };
+  if (record.schema !== ANNOTATION_SCHEMA || record.version !== ANNOTATION_VERSION) {
+    throw new Error("Unsupported annotation schema");
+  }
+  return coerceAnnotations(value);
+}
+
+export function toAnnotationPayload(store: AnnotationStoreV1): AnnotationStoreV1 {
+  return {
+    schema: ANNOTATION_SCHEMA,
+    version: ANNOTATION_VERSION,
+    href: store.href ?? null,
+    highlights: store.highlights.filter((decoration) => decoration.group === "highlights"),
+    notes: store.notes,
+  };
+}
+
 export function parseAnnotations(raw: string | null): AnnotationStoreV1 {
   if (!raw) return emptyAnnotations();
   try {
-    const parsed = JSON.parse(raw) as Partial<AnnotationStoreV1>;
-    if (parsed.schema !== ANNOTATION_SCHEMA || parsed.version !== ANNOTATION_VERSION) {
-      return emptyAnnotations();
-    }
-    return {
-      schema: ANNOTATION_SCHEMA,
-      version: ANNOTATION_VERSION,
-      href: typeof parsed.href === "string" ? parsed.href : null,
-      highlights: Array.isArray(parsed.highlights)
-        ? parsed.highlights.filter(isDecoration)
-        : [],
-      notes: Array.isArray(parsed.notes) ? parsed.notes.filter(isNote) : [],
-    };
+    return coerceAnnotations(JSON.parse(raw));
   } catch {
     return emptyAnnotations();
   }
@@ -92,12 +118,5 @@ export function saveAnnotations(
     : window.localStorage,
 ): void {
   if (!storage) return;
-  const payload: AnnotationStoreV1 = {
-    schema: ANNOTATION_SCHEMA,
-    version: ANNOTATION_VERSION,
-    href: store.href ?? null,
-    highlights: store.highlights.filter((decoration) => decoration.group === "highlights"),
-    notes: store.notes,
-  };
-  storage.setItem(storageKey, JSON.stringify(payload));
+  storage.setItem(storageKey, JSON.stringify(toAnnotationPayload(store)));
 }
