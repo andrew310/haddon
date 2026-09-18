@@ -1,10 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from "react";
 import { eq } from "drizzle-orm";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { Info } from "lucide-react";
 
 import { Button } from "#/components/ui/button";
+import { ReaderTypography } from "#/components/reader/ReaderTypography";
 import { db } from "#/db/client";
 import { ensureBooksTable } from "#/db/ensure";
 import { books } from "#/db/schema";
@@ -14,6 +15,14 @@ import { displayBookTitle } from "#/lib/book-title";
 import { TWO_LANE_MIN_WIDTH } from "#/lib/chat-head-layout";
 import { threadsFromAnnotations } from "#/lib/chat-threads";
 import { disposePublicationSession, getWasm } from "#/lib/wasm";
+import {
+  defaultReaderPrefs,
+  loadReaderPrefs,
+  readerPaneCssVars,
+  saveReaderPrefs,
+  subscribeReaderPrefs,
+  type ReaderPrefsV1,
+} from "../../../demo/src/reader-prefs";
 
 type WasmModule = typeof import("../../../../packages/wasm/pkg/haddon_wasm");
 type PublicationSession = InstanceType<WasmModule["PublicationSession"]>;
@@ -69,15 +78,19 @@ function BookReaderPage() {
   const [lanePref, setLanePref] = useState(1);
   const [wideEnough, setWideEnough] = useState(true);
   const lanes = lanePref === 2 && wideEnough ? 2 : 1;
+  const [prefs, setPrefs] = useState<ReaderPrefsV1>(defaultReaderPrefs);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("haddon:web:lanes");
     if (stored === "2") setLanePref(2);
+    setPrefs(loadReaderPrefs());
     const onResize = () => setWideEnough(window.innerWidth >= TWO_LANE_MIN_WIDTH);
     onResize();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
+
+  useEffect(() => subscribeReaderPrefs(setPrefs), []);
 
   const setLanes = (next: number) => {
     setLanePref(next);
@@ -169,6 +182,10 @@ function BookReaderPage() {
               2 lanes
             </Button>
           </div>
+          <ReaderTypography
+            prefs={prefs}
+            onChange={(next) => setPrefs(saveReaderPrefs(next))}
+          />
         <div className="group relative">
           <Button type="button" variant="outline" size="icon-sm" aria-label="Book info">
             <Info className="size-4" />
@@ -217,6 +234,8 @@ function BookReaderPage() {
           <div
             className="haddon-web-reader h-full overflow-y-auto px-5 pb-5 pt-16"
             data-lanes={lanes}
+            data-reader-theme={prefs.theme}
+            style={readerPaneCssVars(prefs) as CSSProperties}
           >
             {session ? (
               <Suspense

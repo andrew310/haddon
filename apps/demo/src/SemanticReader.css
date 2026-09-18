@@ -25,13 +25,13 @@
 
 .reader-with-margin {
   display: grid;
-  grid-template-columns: minmax(auto, 720px) 0px;
+  grid-template-columns: minmax(auto, var(--haddon-measure, 45rem)) 0px;
   gap: 20px;
   position: relative;
 }
 
 .reader-with-margin.has-notes {
-  grid-template-columns: minmax(auto, 720px) 300px;
+  grid-template-columns: minmax(auto, var(--haddon-measure, 45rem)) 300px;
 }
 
 @media (max-width: 1024px) {
@@ -250,17 +250,29 @@
 }
 
 .haddon-article {
-  background: var(--haddon-surface);
-  color: var(--haddon-text);
+  background: var(--haddon-page-bg, var(--haddon-surface));
+  color: var(--haddon-page-text, var(--haddon-text));
   border: 1px solid var(--haddon-border);
   border-radius: 8px;
   box-shadow: 0 4px 24px var(--haddon-shadow);
   padding: 36px 40px 48px;
-  line-height: 1.65;
-  font-size: 18px;
+  max-width: var(--haddon-measure, 45rem);
+  font-family: var(--haddon-font-family, inherit);
+  font-size: var(--haddon-font-size, 18px);
+  font-optical-sizing: auto;
+  line-height: var(--haddon-line-height, 1.65);
   user-select: text;
   position: relative;
   overflow-x: auto;
+}
+
+.haddon-article[data-reader-theme="dark"] {
+  color-scheme: dark;
+  --haddon-shadow: rgb(0 0 0 / 45%);
+}
+
+.haddon-article[data-reader-font="dyslexia"] {
+  font-synthesis: none;
 }
 
 .haddon-article[data-layout-mode="paginated"] {
@@ -277,6 +289,17 @@
 .haddon-article[data-layout-mode="scrolled"] {
   overflow-x: visible;
   overflow-y: visible;
+}
+
+.haddon-article :where(p, li, dd, dt, blockquote) {
+  font-family: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+.haddon-article :where(h1, h2, h3, h4, h5, h6) {
+  font-family: inherit;
+  color: inherit;
 }
 
 .haddon-article h1,
@@ -316,6 +339,7 @@
 }
 
 .haddon-article figcaption {
+  font-family: inherit;
   color: var(--haddon-text-muted);
   font-size: 14px;
   margin-top: 8px;
