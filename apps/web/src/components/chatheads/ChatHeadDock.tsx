@@ -29,6 +29,7 @@ import {
   stepSpring,
   type SpringState,
 } from "#/lib/chat-head-spring";
+import { askAiReplyState } from "#/lib/ask-ai";
 import type { ChatThread } from "#/lib/chat-threads";
 import { speakerAvatar } from "#/lib/chat-threads";
 
@@ -334,11 +335,26 @@ function ChatHead({
               “{thread.quote}”
             </p>
             <p className="mt-3 leading-6">
-              {thread.reply ?? "No reply yet. Ask AI on this highlight."}
+              <ChatHeadReply reply={thread.reply} />
             </p>
           </div>
         </FloatingPortal>
       ) : null}
     </div>
   );
+}
+
+function ChatHeadReply({ reply }: { reply: string | null }) {
+  const state = askAiReplyState(reply);
+  if (state.kind === "none") {
+    return "No reply yet. Ask AI on this highlight.";
+  }
+  if (state.kind === "pending") {
+    return (
+      <span className="text-muted-foreground" aria-busy="true">
+        Thinking…
+      </span>
+    );
+  }
+  return state.text;
 }

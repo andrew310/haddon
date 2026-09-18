@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState, type CSSProperties } from "react";
 import { eq } from "drizzle-orm";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn, useServerFn } from "@tanstack/react-start";
 import { Info } from "lucide-react";
 
 import { Button } from "#/components/ui/button";
@@ -10,7 +10,10 @@ import { db } from "#/db/client";
 import { ensureBooksTable } from "#/db/ensure";
 import { books } from "#/db/schema";
 import type { AnnotationStoreV1 } from "../../../demo/src/annotations.ts";
+import type { ExplainPassageRequest } from "../../../demo/src/SemanticReader.tsx";
 import { ChatHeadDock } from "#/components/chatheads/ChatHeadDock";
+import { askAboutPassage } from "#/lib/ask-ai-fn";
+import { replyFromAskAiResult } from "#/lib/ask-ai";
 import { displayBookTitle } from "#/lib/book-title";
 import { TWO_LANE_MIN_WIDTH } from "#/lib/chat-head-layout";
 import { threadsFromAnnotations } from "#/lib/chat-threads";
@@ -63,6 +66,7 @@ export const Route = createFileRoute("/books/$bookId")({
 
 function BookReaderPage() {
   const book = Route.useLoaderData();
+  const askAboutPassageFn = useServerFn(askAboutPassage);
   const [session, setSession] = useState<PublicationSession | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -100,6 +104,20 @@ function BookReaderPage() {
   const handleAnnotationsChange = useCallback((store: AnnotationStoreV1) => {
     setAnnotations(store);
   }, []);
+
+  const explainPassage = useCallback(
+    async (input: ExplainPassageRequest) => {
+      const result = await askAboutPassageFn({
+        data: {
+          ...input,
+          bookTitle: bookLabel,
+          bookId: book.id,
+        },
+      });
+      return replyFromAskAiResult(result);
+    },
+    [askAboutPassageFn, book.id, bookLabel],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -247,6 +265,7 @@ function BookReaderPage() {
                   session={session}
                   storageKey={storageKey}
                   onAnnotationsChange={handleAnnotationsChange}
+                  explainPassage={explainPassage}
                   showMarginNotes={false}
                 />
               </Suspense>

@@ -68,6 +68,25 @@ describe("threadsFromAnnotations", () => {
     expect(threads[0]?.reply).toContain("coming soon");
     expect(threads[0]?.speaker).toEqual({ kind: "ai" });
   });
+
+  it("keeps an empty Ask AI note as an empty reply so the dock can show loading", () => {
+    const store: AnnotationStoreV1 = {
+      ...empty,
+      highlights: [highlight("h1", "the ancient Near East")],
+      notes: [
+        {
+          id: "n1",
+          highlightId: "h1",
+          locator: locator("the ancient Near East"),
+          quote: "the ancient Near East",
+          content: "",
+        },
+      ],
+    };
+    const threads = threadsFromAnnotations(store);
+    expect(threads).toHaveLength(1);
+    expect(threads[0]?.reply).toBe("");
+  });
 });
 
 describe("speakerAvatar", () => {
