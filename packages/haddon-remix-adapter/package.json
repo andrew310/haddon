@@ -1,0 +1,24 @@
+{
+  "name": "haddon-remix-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Remix 3 host adapter for Haddon citation-addressable reader",
+  "main": "./haddon-reader.tsx",
+  "types": "./haddon-reader.tsx",
+  "exports": {
+    ".": "./haddon-reader.tsx",
+    "./selection-popover": "./selection-popover.tsx"
+  },
+  "dependencies": {
+    "haddon-citation": "workspace:*",
+    "haddon-citation-router": "workspace:*"
+  },
+  "peerDependencies": {
+    "remix": ">=0.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.3"
+  }
+}
