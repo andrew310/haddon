@@ -29,6 +29,15 @@ import {
   type AnnotationStoreV1,
   type MarginNoteRecord,
 } from "./annotations";
+import { ReaderTypography } from "./ReaderTypography";
+import {
+  loadReaderPrefs,
+  readerPrefsCssVars,
+  readerPrefsSignature,
+  saveReaderPrefs,
+  subscribeReaderPrefs,
+  type ReaderPrefsV1,
+} from "./reader-prefs";
 import "./SemanticReader.css";
 
 type SearchHit = {
@@ -118,6 +127,10 @@ export default function SemanticReader({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [layoutMode, setLayoutMode] = useState<RenditionLayout>("scrolled");
   const capturedLocationBeforeSwitch = useRef<PublicationLocatorV1 | null>(null);
+  const [prefs, setPrefs] = useState<ReaderPrefsV1>(() => loadReaderPrefs());
+  const skipPrefsRevision = useRef(true);
+  const prefsSignature = readerPrefsSignature(prefs);
+  const articleStyle = readerPrefsCssVars(prefs) as React.CSSProperties;
   const [showSelectionChip, setShowSelectionChip] = useState(false);
   const [marginNotes, setMarginNotes] = useState<MarginNoteRecord[]>([]);
   const onAnnotationsChangeRef = useRef(onAnnotationsChange);
@@ -192,6 +205,16 @@ export default function SemanticReader({
     });
   }, []);
 
+  const layoutOptionsFor = useCallback(
+    (root?: HTMLElement | null): LayoutModeOptions => ({
+      mode: layoutMode,
+      columnWidth: Math.max(320, root?.clientWidth || 600),
+      columnGap: 40,
+      direction: "ltr",
+    }),
+    [layoutMode],
+  );
+
   const applyCurrentLayoutMode = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -202,15 +225,8 @@ export default function SemanticReader({
       layoutCleanup.current = null;
     }
 
-    const layoutOptions: LayoutModeOptions = {
-      mode: layoutMode,
-      columnWidth: 600,
-      columnGap: 40,
-      direction: "ltr",
-    };
-
-    layoutCleanup.current = applyLayoutMode(root, layoutOptions);
-  }, [layoutMode]);
+    layoutCleanup.current = applyLayoutMode(root, layoutOptionsFor(root));
+  }, [layoutOptionsFor]);
 
   const showHref = useCallback(
     (nextHref: string, fragment?: string) => {
@@ -250,13 +266,7 @@ export default function SemanticReader({
           if (fragment) {
             const target = root.querySelector(`#${CSS.escape(fragment)}`);
             if (target instanceof HTMLElement) {
-              const layoutOptions: LayoutModeOptions = {
-                mode: layoutMode,
-                columnWidth: 600,
-                columnGap: 40,
-                direction: "ltr",
-              };
-              scrollToElement(root, target, layoutOptions);
+              scrollToElement(root, target, layoutOptionsFor(root));
             }
           }
         });
@@ -268,7 +278,7 @@ export default function SemanticReader({
         setHtml("");
       }
     },
-    [rewriteResources, session, handleLocationChange, layoutMode, applyCurrentLayoutMode],
+    [rewriteResources, session, handleLocationChange, applyCurrentLayoutMode, layoutOptionsFor],
   );
 
   const applyCitation = useCallback(
@@ -750,17 +760,11 @@ export default function SemanticReader({
 
         const block = root.querySelector(`[data-haddon-id="${CSS.escape(hit.blockId)}"]`);
         if (block instanceof HTMLElement) {
-          const layoutOptions: LayoutModeOptions = {
-            mode: layoutMode,
-            columnWidth: 600,
-            columnGap: 40,
-            direction: "ltr",
-          };
-          scrollToElement(root, block, layoutOptions);
+          scrollToElement(root, block, layoutOptionsFor(root));
         }
       });
     });
-  }, [showHref, layoutMode]);
+  }, [showHref, layoutOptionsFor]);
 
   useEffect(() => {
     if (!citeBlockId || !html) return;
@@ -777,15 +781,9 @@ export default function SemanticReader({
     target.querySelector("em")?.classList.add("haddon-cited");
     
     if (target instanceof HTMLElement) {
-      const layoutOptions: LayoutModeOptions = {
-        mode: layoutMode,
-        columnWidth: 600,
-        columnGap: 40,
-        direction: "ltr",
-      };
-      scrollToElement(root, target, layoutOptions);
+      scrollToElement(root, target, layoutOptionsFor(root));
     }
-  }, [citeBlockId, html, layoutMode]);
+  }, [citeBlockId, html, layoutOptionsFor]);
 
   const switchLayoutMode = useCallback(
     async (newMode: RenditionLayout) => {
@@ -845,6 +843,20 @@ export default function SemanticReader({
     persistAnnotations(marginNotes, href);
   }, [href, marginNotes, persistAnnotations, storageKey]);
 
+  useEffect(() => subscribeReaderPrefs(setPrefs), []);
+
+  // Keyed on prefs signature only; layout-mode switches restore location themselves.
+  useEffect(() => {
+    applyCurrentLayoutMode();
+    if (skipPrefsRevision.current) {
+      skipPrefsRevision.current = false;
+      return;
+    }
+    const tracker = visibilityTracker.current;
+    if (!tracker) return;
+    void tracker.incrementLayoutRevision("preferences");
+  }, [prefsSignature]);
+
   return (
     <div className="semantic-reader">
       <SourceDrawer
@@ -864,6 +876,10 @@ export default function SemanticReader({
         />
       )}
       <div className="reader-controls">
+        <ReaderTypography
+          prefs={prefs}
+          onChange={(next) => setPrefs(saveReaderPrefs(next))}
+        />
         <div className="layout-mode-toggle">
           <button
             type="button"
@@ -1007,6 +1023,9 @@ export default function SemanticReader({
           onClick={handleClick}
           onMouseUp={captureSelection}
           layoutMode={layoutMode}
+          theme={prefs.theme}
+          font={prefs.font}
+          articleStyle={articleStyle}
         />
         {showMarginNotes ? (
           <div className="margin-notes-container">
@@ -1033,18 +1052,27 @@ const ArticleBody = memo(function ArticleBody({
   onClick,
   onMouseUp,
   layoutMode,
+  theme,
+  font,
+  articleStyle,
 }: {
   html: string;
   rootRef: React.RefObject<HTMLElement | null>;
   onClick: (event: React.MouseEvent<HTMLElement>) => void;
   onMouseUp: () => void;
   layoutMode: RenditionLayout;
+  theme: ReaderPrefsV1["theme"];
+  font: ReaderPrefsV1["font"];
+  articleStyle: React.CSSProperties;
 }) {
   return (
     <article
       ref={rootRef}
       className="haddon-article"
       data-layout-mode={layoutMode}
+      data-reader-theme={theme}
+      data-reader-font={font}
+      style={articleStyle}
       onClick={onClick}
       onMouseUp={onMouseUp}
       dangerouslySetInnerHTML={{ __html: html }}

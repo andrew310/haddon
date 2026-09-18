@@ -245,6 +245,7 @@ This milestone is the first implementation gate. It must pass before Haddon expa
 
 - [~] Persist current locator, preferences, bookmarks, citation decorations, and annotations with versioned migrations.
   - [x] First cut: versioned `haddon.annotations` v1 in localStorage (highlights, Ask AI notes, last href) for the demo and `apps/web` book reader. Restores after remount.
+  - [x] Reader typography prefs: versioned `haddon.prefs` v1 in `haddon:web:prefs` (typeface, size, line height, measure, page theme). Postgres later.
   - [ ] Postgres-backed annotations, preferences, bookmarks, and normalizer-revision migrations.
 - **Depends on:** HADDON-033, HADDON-040, HADDON-042
 - **Acceptance:** state restores across viewport changes and a normalizer revision; unresolved migrations retain source evidence.
